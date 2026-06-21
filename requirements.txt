@@ -1,0 +1,10 @@
+PyYAML>=6.0
+pytest>=7.4
+transformers>=5.3.0
+datasets>=3.0.0
+trl>=0.19.0
+accelerate>=1.0.0
+peft>=0.17.0
+openenv
+matplotlib>=3.8.0
+pandas>=2.2.0
