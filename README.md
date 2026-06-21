@@ -2,6 +2,16 @@
 
 Colab-first educational project for browser-agent training on MiniWoB `click-checkboxes` using `Qwen/Qwen3.5-0.8B`, OpenEnv, SFT, and GRPO.
 
+Colab install notes:
+
+```bash
+pip install -q -r requirements.txt
+pip install -q "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
+pip install -q "openenv-browsergym @ git+https://huggingface.co/spaces/openenv/browsergym_env"
+```
+
+This follows current OpenEnv + Unsloth docs for Colab/T4 usage.
+
 Planned phases:
 
 1. Native MiniWoB/BrowserGym exploration
@@ -47,3 +57,9 @@ Primary Colab entrypoint:
 
 - `notebooks/orchestrator.ipynb`
 - run cells in order: setup -> probe -> baseline -> collection -> SFT -> GRPO -> analysis
+
+OpenEnv runtime notes:
+
+- baseline/data collection use direct `BrowserGymEnv` `reset()` / `step()` calls
+- BrowserGym actions are sent as natural-language tool strings like `click('12')`
+- GRPO integration is prepared around OpenEnv tool-style environment usage, not a fake offline loop

@@ -2,6 +2,16 @@ from __future__ import annotations
 
 from typing import Any
 
+from src.analysis.report import write_report
+from src.config import ensure_runtime_dirs, load_config
+from src.data.build_sft_dataset import write_step_dataset
+from src.env.native_miniwob_probe import sample_probe_payload
+from src.env.openenv_task import BrowserGymTaskConfig, OpenEnvClickCheckboxesEnv
+from src.eval.run_eval import evaluate_policy
+from src.pipeline.collect import run_collection_loop
+from src.train.grpo import build_grpo_job_config
+from src.train.sft import build_sft_job_config
+
 
 def list_pipeline_phases() -> list[str]:
     return [
@@ -18,11 +28,125 @@ def list_pipeline_phases() -> list[str]:
     ]
 
 
+def _build_env_factory(config: dict[str, Any]) -> Any:
+    task_config = BrowserGymTaskConfig(
+        base_url=config["base_url"],
+        benchmark=config["benchmark"],
+        task_name=config["task_id"],
+    )
+    return lambda: OpenEnvClickCheckboxesEnv(config=task_config)
+
+
+def _build_policy(config: dict[str, Any], checkpoint_path: str | None = None) -> Any:
+    from src.agents.policy import BrowserAgentPolicy, PolicyConfig
+
+    return BrowserAgentPolicy(
+        PolicyConfig(
+            model_id=config["model_id"],
+            checkpoint_path=checkpoint_path,
+        )
+    )
+
+
+def run_native_probe_phase() -> dict[str, Any]:
+    return sample_probe_payload()
+
+
+def run_openenv_probe_phase(config: dict[str, Any]) -> dict[str, Any]:
+    env = _build_env_factory(config)()
+    try:
+        return env.reset()
+    finally:
+        env.close()
+
+
+def run_baseline_eval_phase(config: dict[str, Any], output_name: str = "baseline_metrics.json") -> dict[str, Any]:
+    env_factory = _build_env_factory(config)
+    policy = _build_policy(config)
+    return evaluate_policy(
+        env_factory=env_factory,
+        policy=policy,
+        num_episodes=config["default_eval_episodes"],
+        max_steps=config["max_steps_per_episode"],
+        output_path=f"{config['results_dir']}/{output_name}",
+    )
+
+
+def run_collection_phase(config: dict[str, Any]) -> list[dict[str, Any]]:
+    env_factory = _build_env_factory(config)
+    policy = _build_policy(config)
+    return run_collection_loop(
+        env_factory=env_factory,
+        policy=policy,
+        target_successes=config["target_successes"],
+        max_steps=config["max_steps_per_episode"],
+        output_path=f"{config['data_dir']}/successful_trajectories.jsonl",
+    )
+
+
+def run_sft_dataset_phase(config: dict[str, Any], episodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return write_step_dataset(episodes, path=config["sft_dataset_path"])
+
+
+def run_sft_phase(config: dict[str, Any]) -> dict[str, Any]:
+    return build_sft_job_config(
+        dataset_path=config["sft_dataset_path"],
+        output_dir=config["sft_output_dir"],
+    )
+
+
+def run_grpo_phase(config: dict[str, Any]) -> dict[str, Any]:
+    return build_grpo_job_config(
+        init_model_path=config["sft_output_dir"],
+        output_dir=config["grpo_output_dir"],
+    )
+
+
+def run_analysis_phase(config: dict[str, Any], metrics: dict[str, dict[str, Any]]) -> str:
+    return write_report(metrics, path=f"{config['results_dir']}/report.md")
+
+
 def run_named_phase(name: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
     if name not in list_pipeline_phases():
         raise ValueError(f"Unknown phase: {name}")
-    return {"phase": name, "status": "stub", "context": context or {}}
+    context = dict(context or {})
+    config = context.get("config")
+    if config is None:
+        config_path = context.get("config_path", "configs/default.yaml")
+        config = load_config(config_path)
+        ensure_runtime_dirs(config)
+        context["config"] = config
+
+    if name == "native_probe":
+        return {"phase": name, "result": run_native_probe_phase()}
+    if name == "openenv_probe":
+        return {"phase": name, "result": run_openenv_probe_phase(config)}
+    if name == "baseline_eval":
+        return {"phase": name, "result": run_baseline_eval_phase(config)}
+    if name == "collect_successes":
+        episodes = run_collection_phase(config)
+        context["successful_episodes"] = episodes
+        return {"phase": name, "num_successes": len(episodes)}
+    if name == "build_sft_dataset":
+        episodes = context.get("successful_episodes", [])
+        rows = run_sft_dataset_phase(config, episodes)
+        return {"phase": name, "num_rows": len(rows)}
+    if name == "sft_train":
+        return {"phase": name, "result": run_sft_phase(config)}
+    if name == "sft_eval":
+        return {"phase": name, "result": "Run after Colab SFT completes"}
+    if name == "grpo_train":
+        return {"phase": name, "result": run_grpo_phase(config)}
+    if name == "grpo_eval":
+        return {"phase": name, "result": "Run after Colab GRPO completes"}
+    if name == "analysis":
+        return {"phase": name, "result": "Requires collected metrics JSON files"}
+    return {"phase": name, "status": "unhandled"}
 
 
 def run_full_pipeline(context: dict[str, Any] | None = None) -> list[dict[str, Any]]:
-    return [run_named_phase(name, context=context) for name in list_pipeline_phases()]
+    shared_context = dict(context or {})
+    outputs = []
+    for name in list_pipeline_phases():
+        outputs.append(run_named_phase(name, context=shared_context))
+    return outputs
