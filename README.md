@@ -42,3 +42,8 @@ GRPO smoke command:
 ```bash
 python -c "from src.train.grpo import build_grpo_job_config; import json; print(json.dumps(build_grpo_job_config('models/sft_model', 'models/grpo_model'), indent=2))"
 ```
+
+Primary Colab entrypoint:
+
+- `notebooks/orchestrator.ipynb`
+- run cells in order: setup -> probe -> baseline -> collection -> SFT -> GRPO -> analysis
