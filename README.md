@@ -24,3 +24,9 @@ This should print:
 - instruction field
 - fields payload
 - one sample action attempt result
+
+Phase-1 exit checklist:
+
+- one concrete prompt input shape is written down
+- one concrete action schema is written down
+- one successful OpenEnv `reset -> action -> step` example is recorded
