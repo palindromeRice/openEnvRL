@@ -8,3 +8,4 @@ peft>=0.17.0
 openenv
 matplotlib>=3.8.0
 pandas>=2.2.0
+nest_asyncio>=1.6.0
