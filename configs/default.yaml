@@ -1,0 +1,5 @@
+model_id: Qwen/Qwen3.5-0.8B
+task_id: click-checkboxes
+results_dir: results
+data_dir: data
+models_dir: models
