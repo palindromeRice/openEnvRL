@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import inspect
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -38,6 +40,27 @@ class OpenEnvClickCheckboxesEnv:
         self.backend = backend or self._create_backend()
         self.last_result: Any | None = None
 
+    @staticmethod
+    def _resolve_maybe_awaitable(value: Any) -> Any:
+        if not inspect.isawaitable(value):
+            return value
+
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return asyncio.run(value)
+
+        try:
+            import nest_asyncio
+        except ImportError as exc:
+            raise RuntimeError(
+                "Async BrowserGym client detected inside a running notebook loop. "
+                "Install nest_asyncio or run this code in a plain Python process."
+            ) from exc
+
+        nest_asyncio.apply()
+        return loop.run_until_complete(value)
+
     def _create_backend(self) -> Any:
         try:
             from browsergym_env import BrowserGymEnv
@@ -57,20 +80,20 @@ class OpenEnvClickCheckboxesEnv:
             return BrowserGymEnv(base_url=self.config.base_url)
 
     def reset(self) -> dict[str, Any]:
-        result = self.backend.reset()
+        result = self._resolve_maybe_awaitable(self.backend.reset())
         self.last_result = result
         return self._normalize_reset(result)
 
     def step(self, action: dict[str, Any] | str) -> tuple[dict[str, Any], float, bool, dict[str, Any]]:
         browsergym_action = self._build_action(action)
-        result = self.backend.step(browsergym_action)
+        result = self._resolve_maybe_awaitable(self.backend.step(browsergym_action))
         self.last_result = result
         return self._normalize_step(result)
 
     def close(self) -> None:
         close_fn = getattr(self.backend, "close", None)
         if callable(close_fn):
-            close_fn()
+            self._resolve_maybe_awaitable(close_fn())
 
     def _build_action(self, action: dict[str, Any] | str) -> Any:
         try:
