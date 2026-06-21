@@ -30,3 +30,9 @@ Phase-1 exit checklist:
 - one concrete prompt input shape is written down
 - one concrete action schema is written down
 - one successful OpenEnv `reset -> action -> step` example is recorded
+
+SFT smoke command:
+
+```bash
+python -c "from src.train.sft import build_sft_job_config; import json; print(json.dumps(build_sft_job_config('data/sft_dataset.jsonl', 'models/sft_model'), indent=2))"
+```
