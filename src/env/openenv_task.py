@@ -31,6 +31,13 @@ class BrowserGymTaskConfig:
         payload.update(self.extra_environment)
         return payload
 
+    def reset_kwargs(self) -> dict[str, Any]:
+        return {"task_name": self.task_name}
+
+
+class OpenEnvTransientError(RuntimeError):
+    """Raised when the remote BrowserGym/OpenEnv session drops transiently."""
+
 
 class OpenEnvClickCheckboxesEnv:
     """Direct BrowserGym/OpenEnv client for baseline, eval, and collection."""
@@ -79,21 +86,77 @@ class OpenEnvClickCheckboxesEnv:
             # Some client versions only accept base_url and use server-side task defaults.
             return BrowserGymEnv(base_url=self.config.base_url)
 
+    def _reset_backend(self) -> Any:
+        reset_kwargs = self.config.reset_kwargs()
+        try:
+            return self.backend.reset(**reset_kwargs)
+        except TypeError:
+            return self.backend.reset()
+
+    def _validate_task_binding(self, normalized_reset: dict[str, Any]) -> None:
+        instruction = normalized_reset.get("instruction", "").lower()
+        observation = normalized_reset.get("observation", "").lower()
+        expected = self.config.task_name
+
+        # Prevent silent fallback to the OpenEnv default click-test task.
+        if expected == "click-checkboxes":
+            looks_like_click_test = "click the button" in instruction or "click test task" in observation
+            if looks_like_click_test:
+                raise RuntimeError(
+                    "OpenEnv did not bind to click-checkboxes. It appears to have fallen back to the default "
+                    "click-test task. Verify the remote BrowserGym space supports task_name on reset()."
+                )
+
+    @staticmethod
+    def _is_transient_connection_error(exc: Exception) -> bool:
+        class_name = exc.__class__.__name__
+        message = str(exc).lower()
+        return class_name in {
+            "ConnectionClosed",
+            "ConnectionClosedError",
+            "ConnectionClosedOK",
+        } or any(
+            snippet in message
+            for snippet in (
+                "keepalive ping timeout",
+                "no close frame received",
+                "connection closed",
+                "sent 1011",
+                "received 1011",
+            )
+        )
+
     def reset(self) -> dict[str, Any]:
-        result = self._resolve_maybe_awaitable(self.backend.reset())
+        try:
+            result = self._resolve_maybe_awaitable(self._reset_backend())
+        except Exception as exc:
+            if self._is_transient_connection_error(exc):
+                raise OpenEnvTransientError("OpenEnv reset failed due to a dropped remote session.") from exc
+            raise
         self.last_result = result
-        return self._normalize_reset(result)
+        normalized = self._normalize_reset(result)
+        self._validate_task_binding(normalized)
+        return normalized
 
     def step(self, action: dict[str, Any] | str) -> tuple[dict[str, Any], float, bool, dict[str, Any]]:
         browsergym_action = self._build_action(action)
-        result = self._resolve_maybe_awaitable(self.backend.step(browsergym_action))
+        try:
+            result = self._resolve_maybe_awaitable(self.backend.step(browsergym_action))
+        except Exception as exc:
+            if self._is_transient_connection_error(exc):
+                raise OpenEnvTransientError("OpenEnv step failed due to a dropped remote session.") from exc
+            raise
         self.last_result = result
         return self._normalize_step(result)
 
     def close(self) -> None:
         close_fn = getattr(self.backend, "close", None)
         if callable(close_fn):
-            self._resolve_maybe_awaitable(close_fn())
+            try:
+                self._resolve_maybe_awaitable(close_fn())
+            except Exception as exc:
+                if not self._is_transient_connection_error(exc):
+                    raise
 
     def _build_action(self, action: dict[str, Any] | str) -> Any:
         try:

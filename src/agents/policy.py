@@ -63,14 +63,18 @@ class BrowserAgentPolicy:
         if hasattr(self.model, "device"):
             inputs = {key: value.to(self.model.device) for key, value in inputs.items()}
 
-        generated = self.model.generate(
+        do_sample = self.config.temperature > 0.0
+        generation_kwargs = {
             **inputs,
-            max_new_tokens=self.config.max_new_tokens,
-            do_sample=self.config.temperature > 0.0,
-            temperature=max(self.config.temperature, 1e-5),
-            top_p=self.config.top_p,
-            pad_token_id=self.tokenizer.eos_token_id,
-        )
+            "max_new_tokens": self.config.max_new_tokens,
+            "do_sample": do_sample,
+            "pad_token_id": self.tokenizer.eos_token_id,
+        }
+        if do_sample:
+            generation_kwargs["temperature"] = max(self.config.temperature, 1e-5)
+            generation_kwargs["top_p"] = self.config.top_p
+
+        generated = self.model.generate(**generation_kwargs)
         prompt_length = inputs["input_ids"].shape[1]
         output_text = self.tokenizer.decode(
             generated[0][prompt_length:],
