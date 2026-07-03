@@ -6,6 +6,7 @@ def test_list_pipeline_phases_matches_spec_order():
     assert phases == [
         "native_probe",
         "openenv_probe",
+        "manual_smoke",
         "baseline_eval",
         "collect_successes",
         "build_sft_dataset",

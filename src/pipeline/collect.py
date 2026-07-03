@@ -4,6 +4,7 @@ from typing import Any, Iterable
 
 from src.agents.rollout import run_episode
 from src.data.storage import write_jsonl
+from src.env.openenv_task import OpenEnvTransientError
 
 
 def collect_successful_trajectories(
@@ -28,12 +29,29 @@ def run_collection_loop(
     policy: Any,
     target_successes: int,
     max_steps: int,
+    max_retries_per_episode: int = 2,
     output_path: str = "data/successful_trajectories.jsonl",
 ) -> list[dict[str, Any]]:
     collected: list[dict[str, Any]] = []
     while len(collected) < target_successes:
-        env = env_factory()
-        episode = run_episode(env, policy, max_steps=max_steps)
+        episode: dict[str, Any] | None = None
+        for attempt in range(max_retries_per_episode + 1):
+            env = env_factory()
+            try:
+                episode = run_episode(env, policy, max_steps=max_steps)
+                break
+            except OpenEnvTransientError as exc:
+                if attempt >= max_retries_per_episode:
+                    raise RuntimeError(
+                        "OpenEnv session kept disconnecting during trajectory collection. "
+                        "Reduce target successes for smoke tests or rerun when the remote service is stable."
+                    ) from exc
+            finally:
+                close_fn = getattr(env, "close", None)
+                if callable(close_fn):
+                    close_fn()
+        if episode is None:
+            continue
         if episode["success"] is True:
             collected.append(episode)
     write_jsonl(output_path, collected)

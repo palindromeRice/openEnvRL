@@ -6,6 +6,10 @@ from typing import Any
 
 CANONICAL_CLICK_RE = re.compile(r"^CLICK\s+ref=(\d+)$")
 BROWSERGYM_CLICK_RE = re.compile(r"""click\(['"]([^'"]+)['"]\)""")
+NATURAL_LANGUAGE_CLICK_RE = re.compile(
+    r"""^click(?:\s+the\s+\w+)?\s+['"]([^'"]+)['"]\.?$""",
+    re.IGNORECASE,
+)
 
 
 def strip_action_prefix(text: str) -> str:
@@ -27,6 +31,13 @@ def parse_model_action(text: str) -> dict[str, Any]:
         if ref_text.isdigit():
             return {"type": "CLICK", "ref": int(ref_text)}
         return {"type": "CLICK_TEXT", "target": ref_text}
+
+    natural_language_match = NATURAL_LANGUAGE_CLICK_RE.match(cleaned)
+    if natural_language_match:
+        target = natural_language_match.group(1)
+        if target.isdigit():
+            return {"type": "CLICK", "ref": int(target)}
+        return {"type": "CLICK_TEXT", "target": target}
 
     raise ValueError(f"Unsupported action format: {text}")
 

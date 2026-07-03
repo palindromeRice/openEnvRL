@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from typing import Any
 
+from src.agents.manual_click_checkboxes_policy import ManualClickCheckboxesPolicy
 from src.analysis.report import write_report
 from src.config import ensure_runtime_dirs, load_config
 from src.data.build_sft_dataset import write_step_dataset
+from src.env.native_browsergym_task import NativeMiniWoBClickCheckboxesEnv, NativeMiniWoBTaskConfig
 from src.env.native_miniwob_probe import sample_probe_payload
 from src.env.openenv_task import BrowserGymTaskConfig, OpenEnvClickCheckboxesEnv
 from src.eval.run_eval import evaluate_policy
@@ -17,6 +19,7 @@ def list_pipeline_phases() -> list[str]:
     return [
         "native_probe",
         "openenv_probe",
+        "manual_smoke",
         "baseline_eval",
         "collect_successes",
         "build_sft_dataset",
@@ -29,6 +32,17 @@ def list_pipeline_phases() -> list[str]:
 
 
 def _build_env_factory(config: dict[str, Any]) -> Any:
+    backend = config.get("env_backend", "native_browsergym")
+    if backend == "native_browsergym":
+        task_config = NativeMiniWoBTaskConfig(
+            task_name=config["task_id"],
+            headless=True,
+            miniwob_root=config.get("miniwob_root"),
+            miniwob_url=config.get("miniwob_url"),
+            use_worker_thread=bool(config.get("use_worker_thread", False)),
+        )
+        return lambda: NativeMiniWoBClickCheckboxesEnv(config=task_config)
+
     task_config = BrowserGymTaskConfig(
         base_url=config["base_url"],
         benchmark=config["benchmark"],
@@ -53,7 +67,13 @@ def run_native_probe_phase() -> dict[str, Any]:
 
 
 def run_openenv_probe_phase(config: dict[str, Any]) -> dict[str, Any]:
-    env = _build_env_factory(config)()
+    env = OpenEnvClickCheckboxesEnv(
+        config=BrowserGymTaskConfig(
+            base_url=config["base_url"],
+            benchmark=config["benchmark"],
+            task_name=config["task_id"],
+        )
+    )
     try:
         return env.reset()
     finally:
@@ -68,6 +88,23 @@ def run_baseline_eval_phase(config: dict[str, Any], output_name: str = "baseline
         policy=policy,
         num_episodes=config["default_eval_episodes"],
         max_steps=config["max_steps_per_episode"],
+        max_retries_per_episode=config.get("env_retry_attempts", 2),
+        output_path=f"{config['results_dir']}/{output_name}",
+    )
+
+
+def run_manual_smoke_phase(
+    config: dict[str, Any],
+    output_name: str = "manual_smoke_metrics.json",
+) -> dict[str, Any]:
+    env_factory = _build_env_factory(config)
+    policy = ManualClickCheckboxesPolicy()
+    return evaluate_policy(
+        env_factory=env_factory,
+        policy=policy,
+        num_episodes=config.get("manual_smoke_episodes", 3),
+        max_steps=config["max_steps_per_episode"],
+        max_retries_per_episode=config.get("env_retry_attempts", 2),
         output_path=f"{config['results_dir']}/{output_name}",
     )
 
@@ -80,6 +117,7 @@ def run_collection_phase(config: dict[str, Any]) -> list[dict[str, Any]]:
         policy=policy,
         target_successes=config["target_successes"],
         max_steps=config["max_steps_per_episode"],
+        max_retries_per_episode=config.get("env_retry_attempts", 2),
         output_path=f"{config['data_dir']}/successful_trajectories.jsonl",
     )
 
@@ -121,6 +159,8 @@ def run_named_phase(name: str, context: dict[str, Any] | None = None) -> dict[st
         return {"phase": name, "result": run_native_probe_phase()}
     if name == "openenv_probe":
         return {"phase": name, "result": run_openenv_probe_phase(config)}
+    if name == "manual_smoke":
+        return {"phase": name, "result": run_manual_smoke_phase(config)}
     if name == "baseline_eval":
         return {"phase": name, "result": run_baseline_eval_phase(config)}
     if name == "collect_successes":
