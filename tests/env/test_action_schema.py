@@ -20,3 +20,8 @@ def test_parse_model_action_accepts_browsergym_click_text():
 def test_parse_model_action_accepts_natural_language_click():
     action = parse_model_action("Click the button 'Click Me!'.")
     assert action == {"type": "CLICK_TEXT", "target": "Click Me!"}
+
+
+def test_parse_model_action_accepts_bracketed_click_ref():
+    action = parse_model_action("CLICK [21]")
+    assert action == {"type": "CLICK", "ref": 21}

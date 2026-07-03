@@ -8,38 +8,45 @@ Primary execution path:
 - remote Colab runtime executes `scripts/run_phase.py`
 - notebook is optional and mainly for inspection or plots
 
-Install the local Colab CLI on macOS or Linux:
+## Project Status
 
-```bash
-uv tool install google-colab-cli
-```
+Current scope:
 
-or:
+- single-task pipeline for MiniWoB `click-checkboxes`
+- single-GPU Google Colab execution on `T4`
+- Python scripts as primary runtime, with one thin orchestrator notebook
 
-```bash
-pip install google-colab-cli
-```
+Completed so far:
 
-Colab install notes:
+- Colab CLI execution flow is wired
+- native BrowserGym + MiniWoB manual smoke path works
+- baseline evaluation path works on Colab `T4`
+- action parser now accepts bracketed model outputs like `CLICK [21]`
 
-```bash
-pip install -q -r requirements.txt
-pip install -q "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
-pip install -q "openenv-browsergym @ git+https://huggingface.co/spaces/openenv/browsergym_env"
-pip install -q playwright
-playwright install chromium
-```
+Current baseline result:
 
-Then bootstrap MiniWoB assets for the real `click-checkboxes` task:
+- profile: `50` evaluation episodes
+- success rate: `0.30`
+- average reward: `0.30`
+- average steps: `4.36`
 
-```python
-from src.env.native_browsergym_task import bootstrap_miniwob_assets
+Pending next tasks:
 
-miniwob_url = bootstrap_miniwob_assets("/content/browsergym-assets")
-print(miniwob_url)
-```
+- run successful trajectory collection smoke on Colab
+- inspect and validate `successful_trajectories.jsonl`
+- scale collection beyond smoke run
+- train LoRA SFT model on successful trajectories
+- evaluate SFT against baseline
+- run GRPO starting from SFT model
+- compare baseline vs SFT vs GRPO in final analysis
 
-This follows current BrowserGym + MiniWoB + Unsloth Colab usage, while keeping the OpenEnv client path available for comparison and later harness work.
+Setup approach:
+
+- local machine uses Colab CLI to create and manage remote runtimes
+- remote Colab runtime installs project dependencies and browser support
+- BrowserGym + MiniWoB provide the real `click-checkboxes` task environment
+- OpenEnv remains in project as comparison path and later RL integration path
+- Unsloth is planned for SFT and GRPO on the same single-GPU Colab workflow
 
 Planned phases:
 
@@ -52,13 +59,7 @@ Planned phases:
 7. GRPO training
 8. Final evaluation and analysis
 
-Native probe smoke command:
-
-```bash
-python -c "from src.env.native_miniwob_probe import sample_probe_payload; import json; print(json.dumps(sample_probe_payload(), indent=2))"
-```
-
-This should print:
+Phase-1 probe should capture:
 
 - raw observation keys
 - instruction field
@@ -71,39 +72,12 @@ Phase-1 exit checklist:
 - one concrete action schema is written down
 - one successful BrowserGym MiniWoB `reset -> action -> step` example is recorded
 
-SFT smoke command:
+Project entrypoints:
 
-```bash
-python -c "from src.train.sft import build_sft_job_config; import json; print(json.dumps(build_sft_job_config('data/sft_dataset.jsonl', 'models/sft_model'), indent=2))"
-```
-
-GRPO smoke command:
-
-```bash
-python -c "from src.train.grpo import build_grpo_job_config; import json; print(json.dumps(build_grpo_job_config('models/sft_model', 'models/grpo_model'), indent=2))"
-```
-
-Primary Colab CLI entrypoint:
-
-- `scripts/run_phase.py`
-
-Recommended command order:
-
-```bash
-colab run --gpu T4 scripts/run_phase.py --phase manual_smoke --profile smoke
-colab run --gpu T4 scripts/run_phase.py --phase baseline_eval --profile smoke
-colab run --gpu T4 scripts/run_phase.py --phase collect_successes --profile smoke
-```
-
-Useful flags:
-
-- `--config configs/default.yaml`
-- `--artifact-root /tmp/browser-agent-rl-artifacts`
-
-Optional notebook entrypoint:
-
-- `notebooks/orchestrator.ipynb`
-- use it for inspection, plots, or manual debugging after CLI runs
+- primary runtime entrypoint is `scripts/run_phase.py`
+- optional notebook entrypoint is `notebooks/orchestrator.ipynb`
+- notebook is meant for orchestration, inspection, plotting, and manual debugging
+- Python scripts remain source of truth for execution flow
 
 Runtime notes:
 
