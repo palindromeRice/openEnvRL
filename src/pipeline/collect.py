@@ -54,5 +54,5 @@ def run_collection_loop(
             continue
         if episode["success"] is True:
             collected.append(episode)
-    write_jsonl(output_path, collected)
+            write_jsonl(output_path, collected)
     return collected

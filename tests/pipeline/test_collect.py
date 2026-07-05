@@ -1,3 +1,4 @@
+from src.data.storage import read_jsonl
 from src.env.openenv_task import OpenEnvTransientError
 from src.pipeline.collect import run_collection_loop
 
@@ -40,6 +41,33 @@ def test_run_collection_loop_closes_envs(tmp_path):
     assert len(episodes) == 2
     assert len(created) == 2
     assert all(env.closed for env in created)
+
+
+def test_run_collection_loop_writes_output_after_each_success(tmp_path):
+    output_path = tmp_path / "success.jsonl"
+    observed_lengths = []
+
+    class ObservingEnv(DummyEnv):
+        def reset(self):
+            if output_path.exists():
+                observed_lengths.append(len(read_jsonl(output_path)))
+            else:
+                observed_lengths.append(0)
+            return super().reset()
+
+    episodes = run_collection_loop(
+        env_factory=ObservingEnv,
+        policy=DummyPolicy(),
+        target_successes=3,
+        max_steps=1,
+        output_path=str(output_path),
+    )
+
+    assert len(episodes) == 3
+    # each episode should see the file already containing every prior success,
+    # proving results are persisted incrementally rather than only at the end.
+    assert observed_lengths == [0, 1, 2]
+    assert len(read_jsonl(output_path)) == 3
 
 
 def test_run_collection_loop_retries_transient_openenv_errors(tmp_path):
