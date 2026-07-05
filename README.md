@@ -22,6 +22,10 @@ Completed so far:
 - native BrowserGym + MiniWoB manual smoke path works
 - baseline evaluation path works on Colab `T4`
 - action parser now accepts bracketed model outputs like `CLICK [21]`
+- successful trajectory collection smoke run completed on Colab `T4` (5/5 successes)
+- `successful_trajectories.jsonl` inspected and validated against the episode/step schema contracts (success flags, reward sums, done flags, parseable actions) — 0 errors
+- collection scaled to the full `50` successes on Colab `T4`, validated the same way — 0 errors, avg `1.34` steps/episode, reward `1.0` across all episodes
+- collection loop now checkpoints `successful_trajectories.jsonl` after every success (not just at the end), so a mid-run Colab disconnect loses at most one in-flight episode instead of the whole batch
 
 Current baseline result:
 
@@ -32,10 +36,8 @@ Current baseline result:
 
 Pending next tasks:
 
-- run successful trajectory collection smoke on Colab
-- inspect and validate `successful_trajectories.jsonl`
-- scale collection beyond smoke run
-- train LoRA SFT model on successful trajectories
+- build the SFT dataset from `successful_trajectories.jsonl`
+- train LoRA SFT model on the built dataset
 - evaluate SFT against baseline
 - run GRPO starting from SFT model
 - compare baseline vs SFT vs GRPO in final analysis
