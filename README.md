@@ -26,6 +26,9 @@ Completed so far:
 - `successful_trajectories.jsonl` inspected and validated against the episode/step schema contracts (success flags, reward sums, done flags, parseable actions) — 0 errors
 - collection scaled to the full `50` successes on Colab `T4`, validated the same way — 0 errors, avg `1.34` steps/episode, reward `1.0` across all episodes
 - collection loop now checkpoints `successful_trajectories.jsonl` after every success (not just at the end), so a mid-run Colab disconnect loses at most one in-flight episode instead of the whole batch
+- SFT dataset built from `successful_trajectories.jsonl`: 67 step-level rows from the 50 real episodes, 1:1 with no synthetic augmentation
+- LoRA SFT trained on Colab `T4` (Qwen3.5-0.8B, unsloth, r=16, 60 steps, ~3.5 epochs)
+- SFT evaluated against baseline on the same `50`-episode profile: success rate `0.30` -> `0.58`, average reward `0.30` -> `0.58`, average steps `4.36` -> `1.4`
 
 Current baseline result:
 
@@ -34,11 +37,15 @@ Current baseline result:
 - average reward: `0.30`
 - average steps: `4.36`
 
+Current SFT result:
+
+- profile: `50` evaluation episodes
+- success rate: `0.58`
+- average reward: `0.58`
+- average steps: `1.4`
+
 Pending next tasks:
 
-- build the SFT dataset from `successful_trajectories.jsonl`
-- train LoRA SFT model on the built dataset
-- evaluate SFT against baseline
 - run GRPO starting from SFT model
 - compare baseline vs SFT vs GRPO in final analysis
 
