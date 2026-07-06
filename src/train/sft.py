@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from src.agents.prompting import build_action_prompt
 from src.data.storage import read_jsonl
 
 
@@ -30,19 +31,19 @@ def ensure_sft_artifact_dirs(config: dict[str, Any]) -> None:
     Path(config["output_dir"]).mkdir(parents=True, exist_ok=True)
 
 
-def format_sft_text(row: dict[str, Any]) -> str:
-    return (
-        "You are a browser agent.\n"
-        f"Task: {row['instruction']}\n"
-        f"Observation: {row['observation']}\n"
-        "Respond with one action only.\n"
-        f"{row['target_action']}"
+def format_sft_text(row: dict[str, Any], tokenizer: Any) -> str:
+    prompt = build_action_prompt(instruction=row["instruction"], observation=row["observation"])
+    chat_prompt = tokenizer.apply_chat_template(
+        [{"role": "user", "content": prompt}],
+        tokenize=False,
+        add_generation_prompt=True,
     )
+    return chat_prompt + row["target_action"] + tokenizer.eos_token
 
 
-def load_sft_dataset(dataset_path: str) -> Any:
+def load_sft_dataset(dataset_path: str, tokenizer: Any) -> Any:
     rows = read_jsonl(dataset_path)
-    formatted_rows = [{"text": format_sft_text(row)} for row in rows]
+    formatted_rows = [{"text": format_sft_text(row, tokenizer)} for row in rows]
 
     from datasets import Dataset
 
@@ -50,8 +51,8 @@ def load_sft_dataset(dataset_path: str) -> Any:
 
 
 def build_sft_trainer(config: dict[str, Any]) -> Any:
-    from trl import SFTConfig, SFTTrainer
     from unsloth import FastLanguageModel
+    from trl import SFTConfig, SFTTrainer
 
     model, tokenizer = FastLanguageModel.from_pretrained(
         model_name=config["model_id"],
@@ -79,7 +80,7 @@ def build_sft_trainer(config: dict[str, Any]) -> Any:
         random_state=config["seed"],
         max_seq_length=config["max_seq_length"],
     )
-    dataset = load_sft_dataset(config["dataset_path"])
+    dataset = load_sft_dataset(config["dataset_path"], tokenizer)
     args = SFTConfig(
         max_seq_length=config["max_seq_length"],
         per_device_train_batch_size=config["per_device_train_batch_size"],
@@ -108,5 +109,11 @@ def run_sft_training(config: dict[str, Any]) -> Any:
     ensure_sft_artifact_dirs(config)
     trainer = build_sft_trainer(config)
     trainer_stats = trainer.train()
-    trainer.save_model(config["output_dir"])
+
+    trainer.model.save_pretrained_merged(
+        config["output_dir"],
+        trainer.processing_class,
+        save_method="merged_16bit",
+    )
+
     return trainer_stats
