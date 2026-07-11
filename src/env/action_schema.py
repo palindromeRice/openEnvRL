@@ -6,6 +6,7 @@ from typing import Any
 
 CANONICAL_CLICK_RE = re.compile(r"^CLICK\s+ref=(\d+)$")
 BRACKETED_CLICK_RE = re.compile(r"^CLICK\s+\[(\d+)\]$", re.IGNORECASE)
+SIMPLE_CLICK_RE = re.compile(r"^CLICK\s+(\d+)$", re.IGNORECASE)
 BROWSERGYM_CLICK_RE = re.compile(r"""click\(['"]([^'"]+)['"]\)""")
 NATURAL_LANGUAGE_CLICK_RE = re.compile(
     r"""^click(?:\s+the\s+\w+)?\s+['"]([^'"]+)['"]\.?$""",
@@ -29,6 +30,10 @@ def parse_model_action(text: str) -> dict[str, Any]:
     bracketed_match = BRACKETED_CLICK_RE.match(cleaned)
     if bracketed_match:
         return {"type": "CLICK", "ref": int(bracketed_match.group(1))}
+
+    simple_match = SIMPLE_CLICK_RE.match(cleaned)
+    if simple_match:
+        return {"type": "CLICK", "ref": int(simple_match.group(1))}
 
     browsergym_match = BROWSERGYM_CLICK_RE.search(cleaned)
     if browsergym_match:

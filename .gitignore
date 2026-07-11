@@ -4,3 +4,5 @@ __pycache__/
 data/
 models/
 results/
+artifacts/
+unsloth_compiled_cache/

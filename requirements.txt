@@ -1,4 +1,4 @@
-PyYAML>=6.0
+how mPyYAML>=6.0
 pytest>=7.4
 transformers>=5.3.0
 datasets>=3.0.0
@@ -10,3 +10,5 @@ browsergym-miniwob>=0.14.3
 matplotlib>=3.8.0
 pandas>=2.2.0
 nest_asyncio>=1.6.0
+flash-attn
+causal-conv1d

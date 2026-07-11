@@ -42,19 +42,19 @@ Current SFT result:
 - profile: `50` evaluation episodes
 - success rate: `0.58`
 - average reward: `0.58`
-- average steps: `1.4`
+- average steps: `1.42`
 
 Pending next tasks:
 
-- rerun SFT with Drive-backed persistence, then verify its saved adapter, merged model, metrics, and manifest
 - run a tiny GRPO smoke starting from the recovered SFT model
+- scale GRPO to full run
 - compare baseline vs SFT vs GRPO in final analysis
 
 SFT recovery status:
 
-- historical SFT metrics above are documented results, but their run artifacts are not available in this checkout
-- each new SFT rerun is Drive-backed: successful trajectories checkpoint after every success and required deliverables are `successful_trajectories.jsonl`, `sft_dataset.jsonl`, `sft_adapter/`, `sft_model/`, `sft_metrics.json`, and `run_manifest.json`
-- no new rerun result is claimed until these Drive artifacts are verified
+- SFT run was successfully rerun with Drive-backed persistence on Colab `L4` using `flash-attn`.
+- `successful_trajectories.jsonl`, `sft_dataset.jsonl`, `sft_adapter/`, `sft_model/`, `sft_metrics.json`, and `run_manifest.json` are successfully saved on Drive.
+- Metrics match earlier runs: 58% success rate, 1.42 avg steps.
 
 Setup approach:
 
