@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from src.agents.rollout import run_episode
 
 
@@ -19,3 +21,9 @@ def test_run_episode_collects_steps():
     assert len(episode["steps"]) == 1
     assert episode["steps"][0]["action"] == "CLICK ref=1"
     assert episode["success"] is True
+
+
+def test_run_episode_assigns_uuid4_episode_id():
+    episode = run_episode(DummyEnv(), DummyPolicy(), max_steps=1)
+
+    assert UUID(episode["episode_id"]).version == 4

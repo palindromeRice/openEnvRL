@@ -5,6 +5,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from src.artifacts import prepare_drive_artifact_root
+
 
 def list_pipeline_phases() -> list[str]:
     from src.pipeline.run_all import list_pipeline_phases as _list_pipeline_phases
@@ -40,7 +42,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run one browser-agent pipeline phase.")
     parser.add_argument("--phase", required=True)
     parser.add_argument("--config", default="configs/default.yaml")
-    parser.add_argument("--profile", default="smoke", choices=["smoke", "full"])
+    parser.add_argument("--profile", default="smoke", choices=["smoke", "sft_smoke", "full"])
     parser.add_argument("--artifact-root")
     return parser
 
@@ -52,6 +54,10 @@ def apply_profile(config: dict[str, Any], profile: str) -> dict[str, Any]:
         config["target_successes"] = 5
         config["max_steps_per_episode"] = 6
         config["manual_smoke_episodes"] = 2
+    elif profile == "sft_smoke":
+        config["default_eval_episodes"] = 2
+        config["target_successes"] = 2
+        config["max_steps_per_episode"] = 6
     elif profile != "full":
         raise ValueError(f"Unknown profile: {profile}")
     return config
@@ -63,12 +69,10 @@ def apply_artifact_root(config: dict[str, Any], artifact_root: str | None) -> di
         return config
 
     root = Path(artifact_root)
-    config["results_dir"] = str(root / "results")
-    config["data_dir"] = str(root / "data")
-    config["models_dir"] = str(root / "models")
+    drive_paths = prepare_drive_artifact_root(root)
+    config.update({key: str(path) for key, path in drive_paths.items()})
+    config["artifact_root"] = str(root)
     config["miniwob_root"] = str(root / "browsergym-assets")
-    config["sft_dataset_path"] = str(root / "data" / "sft_dataset.jsonl")
-    config["sft_output_dir"] = str(root / "models" / "sft_model")
     config["grpo_output_dir"] = str(root / "models" / "grpo_model")
     return config
 

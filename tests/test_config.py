@@ -7,3 +7,9 @@ def test_load_config_reads_model_and_task(tmp_path):
     cfg = load_config(path)
     assert cfg["model_id"] == "Qwen/Qwen3.5-0.8B"
     assert cfg["task_id"] == "click-checkboxes"
+
+
+def test_default_config_declares_sft_adapter_output():
+    cfg = load_config("configs/default.yaml")
+
+    assert cfg["sft_adapter_dir"] == "models/sft_adapter"

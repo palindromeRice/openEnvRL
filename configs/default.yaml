@@ -16,4 +16,5 @@ env_retry_attempts: 2
 target_successes: 50
 sft_dataset_path: data/sft_dataset.jsonl
 sft_output_dir: models/sft_model
+sft_adapter_dir: models/sft_adapter
 grpo_output_dir: models/grpo_model
