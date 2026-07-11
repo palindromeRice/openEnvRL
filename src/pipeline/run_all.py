@@ -186,10 +186,13 @@ def run_sft_manifest_phase(config: dict[str, Any]) -> dict[str, Any]:
 
 
 def run_grpo_phase(config: dict[str, Any]) -> dict[str, Any]:
-    return build_grpo_job_config(
+    from src.train.grpo import run_grpo_training, build_grpo_job_config
+    
+    job_config = build_grpo_job_config(
         init_model_path=config["sft_output_dir"],
         output_dir=config["grpo_output_dir"],
     )
+    return run_grpo_training(job_config)
 
 
 def run_analysis_phase(config: dict[str, Any], metrics: dict[str, dict[str, Any]]) -> str:
