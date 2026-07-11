@@ -1,18 +1,21 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
+from src.artifacts import DEFAULT_DRIVE_ARTIFACT_PREFIX, write_run_manifest
 from src.agents.manual_click_checkboxes_policy import ManualClickCheckboxesPolicy
 from src.analysis.report import write_report
 from src.config import ensure_runtime_dirs, load_config
 from src.data.build_sft_dataset import write_step_dataset
+from src.data.storage import read_jsonl
 from src.env.native_browsergym_task import NativeMiniWoBClickCheckboxesEnv, NativeMiniWoBTaskConfig
 from src.env.native_miniwob_probe import sample_probe_payload
 from src.env.openenv_task import BrowserGymTaskConfig, OpenEnvClickCheckboxesEnv
 from src.eval.run_eval import evaluate_policy
-from src.pipeline.collect import run_collection_loop
+from src.pipeline.collect import run_collection_loop, validate_successful_episodes
 from src.train.grpo import build_grpo_job_config
-from src.train.sft import build_sft_job_config
+from src.train.sft import build_sft_job_config, run_sft_training, validate_sft_exports
 
 
 def list_pipeline_phases() -> list[str]:
@@ -25,6 +28,7 @@ def list_pipeline_phases() -> list[str]:
         "build_sft_dataset",
         "sft_train",
         "sft_eval",
+        "sft_manifest",
         "grpo_train",
         "grpo_eval",
         "analysis",
@@ -122,15 +126,63 @@ def run_collection_phase(config: dict[str, Any]) -> list[dict[str, Any]]:
     )
 
 
-def run_sft_dataset_phase(config: dict[str, Any], episodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    return write_step_dataset(episodes, path=config["sft_dataset_path"])
+def run_sft_dataset_phase(
+    config: dict[str, Any], episodes: list[dict[str, Any]] | None = None
+) -> list[dict[str, Any]]:
+    if episodes is None:
+        episodes = read_jsonl(f"{config['data_dir']}/successful_trajectories.jsonl")
+    validate_successful_episodes(episodes, config.get("target_successes", len(episodes)))
+    rows = write_step_dataset(episodes, path=config["sft_dataset_path"])
+    expected_row_count = sum(len(episode["steps"]) for episode in episodes)
+    if len(rows) != expected_row_count:
+        raise RuntimeError("SFT dataset row count does not match source trajectory steps")
+    return rows
 
 
 def run_sft_phase(config: dict[str, Any]) -> dict[str, Any]:
-    return build_sft_job_config(
+    job_config = build_sft_job_config(
         dataset_path=config["sft_dataset_path"],
         output_dir=config["sft_output_dir"],
+        adapter_dir=config["sft_adapter_dir"],
     )
+    return run_sft_training(job_config)
+
+
+def run_sft_eval_phase(config: dict[str, Any]) -> dict[str, Any]:
+    sft_config = {
+        **config,
+        "output_dir": config["sft_output_dir"],
+        "adapter_dir": config["sft_adapter_dir"],
+    }
+    validate_sft_exports(sft_config)
+    env_factory = _build_env_factory(config)
+    policy = _build_policy(config, checkpoint_path=config["sft_output_dir"])
+    return evaluate_policy(
+        env_factory=env_factory,
+        policy=policy,
+        num_episodes=config["default_eval_episodes"],
+        max_steps=config["max_steps_per_episode"],
+        max_retries_per_episode=config.get("env_retry_attempts", 2),
+        output_path=f"{config['results_dir']}/sft_metrics.json",
+    )
+
+
+def run_sft_manifest_phase(config: dict[str, Any]) -> dict[str, Any]:
+    root = Path(config.get("artifact_root", "")).resolve()
+    prefix = DEFAULT_DRIVE_ARTIFACT_PREFIX.resolve()
+    try:
+        root.relative_to(prefix)
+    except ValueError as error:
+        raise ValueError("SFT manifest requires a Google Drive artifact root") from error
+    paths = {
+        "data_dir": config["data_dir"],
+        "results_dir": config["results_dir"],
+        "models_dir": config["models_dir"],
+        "sft_dataset_path": config["sft_dataset_path"],
+        "sft_output_dir": config["sft_output_dir"],
+        "sft_adapter_dir": config["sft_adapter_dir"],
+    }
+    return write_run_manifest(paths, config)
 
 
 def run_grpo_phase(config: dict[str, Any]) -> dict[str, Any]:
@@ -168,13 +220,15 @@ def run_named_phase(name: str, context: dict[str, Any] | None = None) -> dict[st
         context["successful_episodes"] = episodes
         return {"phase": name, "num_successes": len(episodes)}
     if name == "build_sft_dataset":
-        episodes = context.get("successful_episodes", [])
+        episodes = context.get("successful_episodes")
         rows = run_sft_dataset_phase(config, episodes)
         return {"phase": name, "num_rows": len(rows)}
     if name == "sft_train":
         return {"phase": name, "result": run_sft_phase(config)}
     if name == "sft_eval":
-        return {"phase": name, "result": "Run after Colab SFT completes"}
+        return {"phase": name, "result": run_sft_eval_phase(config)}
+    if name == "sft_manifest":
+        return {"phase": name, "result": run_sft_manifest_phase(config)}
     if name == "grpo_train":
         return {"phase": name, "result": run_grpo_phase(config)}
     if name == "grpo_eval":

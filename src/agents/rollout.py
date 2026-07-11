@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
+from uuid import uuid4
 
 from src.data.trajectory_schema import build_step_record
 
@@ -35,6 +36,7 @@ def run_episode(env: Any, policy: Any, max_steps: int) -> dict[str, Any]:
             break
 
     return {
+        "episode_id": str(uuid4()),
         "steps": steps,
         "success": bool(done and final_info.get("success") is True),
         "total_reward": total_reward,

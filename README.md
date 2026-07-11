@@ -46,8 +46,15 @@ Current SFT result:
 
 Pending next tasks:
 
-- run GRPO starting from SFT model
+- rerun SFT with Drive-backed persistence, then verify its saved adapter, merged model, metrics, and manifest
+- run a tiny GRPO smoke starting from the recovered SFT model
 - compare baseline vs SFT vs GRPO in final analysis
+
+SFT recovery status:
+
+- historical SFT metrics above are documented results, but their run artifacts are not available in this checkout
+- each new SFT rerun is Drive-backed: successful trajectories checkpoint after every success and required deliverables are `successful_trajectories.jsonl`, `sft_dataset.jsonl`, `sft_adapter/`, `sft_model/`, `sft_metrics.json`, and `run_manifest.json`
+- no new rerun result is claimed until these Drive artifacts are verified
 
 Setup approach:
 
