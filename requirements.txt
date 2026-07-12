@@ -1,4 +1,4 @@
-how mPyYAML>=6.0
+PyYAML>=6.0
 pytest>=7.4
 transformers>=5.3.0
 datasets>=3.0.0
