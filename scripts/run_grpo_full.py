@@ -16,6 +16,10 @@ def main() -> int:
         init_model_path=config["sft_output_dir"],
         output_dir=config["grpo_output_dir"],
     )
+    # Pass through miniwob_root from the project config so the native env
+    # can bootstrap MiniWoB assets on a fresh Colab VM.
+    if config.get("miniwob_root"):
+        job_config["miniwob_root"] = config["miniwob_root"]
     
     print("Starting GRPO training...")
     stats = run_grpo_training(job_config)
