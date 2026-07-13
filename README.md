@@ -46,9 +46,16 @@ Current SFT result:
 
 Pending next tasks:
 
-- run a tiny GRPO smoke starting from the recovered SFT model
+- increase `max_completion_length` and add tool-use instructions to system prompt for GRPO
 - scale GRPO to full run
 - compare baseline vs SFT vs GRPO in final analysis
+
+GRPO smoke test status:
+
+- Successfully executed a 50-step GRPO training pipeline on Colab `L4`.
+- Switched to native `BrowserGym` for `click-checkboxes` to match the SFT environment.
+- Implemented TRL `GRPOTrainer` `environment_factory` interface (`reset`, `get_reward`, arg docstrings).
+- Discovered 0 tool calls during smoke test due to short `max_completion_length` (64) and lack of tool-use prompt; pipeline runs end-to-end otherwise.
 
 SFT recovery status:
 
