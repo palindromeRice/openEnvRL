@@ -103,11 +103,12 @@ def reward_func(completions: list[Any], **kwargs: Any) -> list[float]:
 def build_grpo_prompt_dataset(num_rows: int = 32) -> Any:
     from datasets import Dataset
 
-    prompt = (
-        "You are a browser agent solving the click-checkboxes task. "
-        "Use the available browser tools to complete the task."
-    )
-    rows = [{"prompt": [{"role": "user", "content": prompt}]} for _ in range(num_rows)]
+    system_msg = {"role": "system", "content": "You are a helpful assistant with access to tools."}
+    user_msg = {
+        "role": "user", 
+        "content": "You are a browser agent solving the click-checkboxes task. Use the available browser tools to complete the task."
+    }
+    rows = [{"prompt": [system_msg, user_msg]} for _ in range(num_rows)]
     return Dataset.from_list(rows)
 
 
