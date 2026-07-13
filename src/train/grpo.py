@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from src.env.openenv_task import BrowserGymTaskConfig, OpenEnvClickCheckboxesEnv
+from src.env.native_browsergym_task import NativeMiniWoBTaskConfig, NativeMiniWoBClickCheckboxesEnv
 
 
 def build_grpo_job_config(init_model_path: str, output_dir: str) -> dict[str, Any]:
@@ -24,7 +24,7 @@ def build_grpo_job_config(init_model_path: str, output_dir: str) -> dict[str, An
         "save_steps": 10,
         "task_name": "click-checkboxes",
         "benchmark": "miniwob",
-        "base_url": "https://openenv-browsergym-env.hf.space",
+        "miniwob_root": "/content/browsergym-assets",
     }
 
 
@@ -33,25 +33,46 @@ def ensure_grpo_artifact_dirs(config: dict[str, Any]) -> None:
 
 
 class BrowserGymToolEnv:
-    """TRL environment_factory wrapper for BrowserGym/OpenEnv."""
+    """TRL environment_factory wrapper for native BrowserGym.
+
+    TRL interface:
+      - reset(**kwargs) -> str | None  — called at start of each rollout
+      - get_reward() -> float          — called after rollout to score
+      - other public methods (click, noop) exposed as tools to the model
+    """
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
         merged = build_grpo_job_config("models/sft_model", "models/grpo_model")
         if config:
             merged.update(config)
         self.config = merged
-        self.env = OpenEnvClickCheckboxesEnv(
-            config=BrowserGymTaskConfig(
-                base_url=self.config["base_url"],
-                benchmark=self.config["benchmark"],
+        self.env = NativeMiniWoBClickCheckboxesEnv(
+            config=NativeMiniWoBTaskConfig(
                 task_name=self.config["task_name"],
+                miniwob_root=self.config.get("miniwob_root"),
             )
         )
         self.reward = 0.0
         self.done = False
+        self.last_observation: dict[str, Any] = {}
+
+    def reset(self, **kwargs: Any) -> str:
+        """Reset the environment for a new episode. Called by TRL at rollout start."""
+        self.reward = 0.0
+        self.done = False
         self.last_observation = self.env.reset()
+        return self.last_observation.get("observation", "Environment ready.")
+
+    def get_reward(self) -> float:
+        """Return the cumulative reward for this episode. Called by TRL after rollout."""
+        return self.reward
 
     def click(self, target: str) -> str:
+        """Click on an element in the browser.
+
+        Args:
+            target: The browsergym ID of the element to click on, e.g. '12' or 'a3'.
+        """
         action_text = f"click('{target}')"
         obs, reward, done, info = self.env.step(action_text)
         self.reward = reward
@@ -60,10 +81,11 @@ class BrowserGymToolEnv:
         return obs["observation"]
 
     def noop(self) -> str:
+        """Do nothing and return the current browser observation."""
         self.reward = 0.0
-        return self.last_observation["observation"]
+        return self.last_observation.get("observation", "")
 
-    def close(self) -> None:
+    def _close(self) -> None:
         self.env.close()
 
 
@@ -97,7 +119,7 @@ def build_grpo_trainer(config: dict[str, Any]) -> Any:
         gradient_accumulation_steps=config["gradient_accumulation_steps"],
         per_device_train_batch_size=config["per_device_train_batch_size"],
         num_generations=config["num_generations"],
-        max_prompt_length=config["max_prompt_length"],
+        generation_batch_size=config.get("generation_batch_size", config["num_generations"]),
         max_completion_length=config["max_completion_length"],
         max_steps=config["max_steps"],
         logging_steps=config["logging_steps"],
