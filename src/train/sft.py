@@ -54,6 +54,33 @@ def load_sft_dataset(dataset_path: str, tokenizer: Any) -> Any:
     return Dataset.from_list(formatted_rows)
 
 
+def attach_tool_call_response_schema(tokenizer: Any) -> Any:
+    """Attach the parser TRL's `GRPOTrainer` needs to recognize tool calls in generated text.
+
+    Without `response_template`/`response_schema` set on the tokenizer, `GRPOTrainer` never
+    attempts to parse tool calls out of model output at all (`tools/call_frequency` stays 0
+    regardless of generation length or training progress) - see
+    https://huggingface.co/docs/transformers/main/en/chat_response_parsing.
+
+    `add_response_schema` matches the tokenizer's chat_template against known template strings
+    verbatim, so it doesn't recognize an SFT-customized template (e.g. one run through
+    `clone_chat_template`/`get_training_chat_template`) even when the rendered tool-call format is
+    identical. Our chat template renders `<tool_call>\n<function=NAME>\n<parameter=KEY>\nVALUE\n
+    </parameter>\n</function>\n</tool_call>` with `<|im_start|>assistant\n` turn anchors - byte-for-
+    byte the same shape TRL ships for Qwen3.5 - so fall back to assigning that schema directly.
+    """
+    from trl.chat_template_utils import _SUPPORTS_RESPONSE_TEMPLATE, add_response_schema, qwen3_5_schema, qwen3_5_template
+
+    try:
+        return add_response_schema(tokenizer)
+    except ValueError:
+        if _SUPPORTS_RESPONSE_TEMPLATE:
+            tokenizer.response_template = qwen3_5_template
+        else:
+            tokenizer.response_schema = qwen3_5_schema
+        return tokenizer
+
+
 def build_sft_trainer(config: dict[str, Any]) -> Any:
     from unsloth import FastLanguageModel
     from trl import SFTConfig, SFTTrainer
@@ -65,6 +92,7 @@ def build_sft_trainer(config: dict[str, Any]) -> Any:
         load_in_16bit=not config["load_in_4bit"],
         full_finetuning=False,
     )
+    tokenizer = attach_tool_call_response_schema(tokenizer)
     model = FastLanguageModel.get_peft_model(
         model,
         r=16,

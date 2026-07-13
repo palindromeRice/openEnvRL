@@ -14,7 +14,7 @@ def build_grpo_job_config(init_model_path: str, output_dir: str) -> dict[str, An
         "online_env_interaction": True,
         "reward_source": "native_env_reward",
         "max_prompt_length": 512,
-        "max_completion_length": 64,
+        "max_completion_length": 512,
         "per_device_train_batch_size": 1,
         "gradient_accumulation_steps": 1,
         "num_generations": 2,
