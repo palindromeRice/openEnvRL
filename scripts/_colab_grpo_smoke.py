@@ -19,9 +19,13 @@ if "target: The browsergym ID" not in content:
 else:
     print("File is up to date.")
 
+# Install dependencies
+print("Installing dependencies...")
+subprocess.run([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"], check=True)
+
 # Install Playwright system dependencies
 print("Installing Playwright system dependencies...")
-subprocess.run(["playwright", "install-deps"], check=True)
+subprocess.run([sys.executable, "-m", "playwright", "install-deps"], check=True)
 print("System deps ready.")
 
 print("Installing Playwright chromium browser...")
@@ -36,14 +40,7 @@ print("=" * 60)
 result = subprocess.run(
     [sys.executable, "scripts/run_grpo_full.py"],
     cwd="/content/drive/MyDrive/openEnvRL",
-    text=True,
-    capture_output=True,
 )
-
-print(result.stdout[-5000:] if len(result.stdout) > 5000 else result.stdout)
-if result.stderr:
-    print("STDERR (last 3000 chars):")
-    print(result.stderr[-3000:])
 
 if result.returncode != 0:
     print(f"\nProcess exited with code {result.returncode}")
