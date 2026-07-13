@@ -14,6 +14,10 @@ max_steps_per_episode: 10
 manual_smoke_episodes: 3
 default_eval_episodes: 50
 final_eval_episodes: 500
+max_completion_length: 512
+num_generations: 8
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 4
 env_retry_attempts: 2
 target_successes: 50
 sft_dataset_path: data/sft_dataset.jsonl
