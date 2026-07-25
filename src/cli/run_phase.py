@@ -73,7 +73,7 @@ def apply_artifact_root(config: dict[str, Any], artifact_root: str | None) -> di
     config.update({key: str(path) for key, path in drive_paths.items()})
     config["artifact_root"] = str(root)
     config["miniwob_root"] = str(root / "browsergym-assets")
-    config["grpo_output_dir"] = str(root / "models" / "grpo_model")
+    config["grpo_output_dir"] = str(drive_paths["grpo_output_dir"])
     return config
 
 
