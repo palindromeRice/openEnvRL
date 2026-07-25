@@ -49,8 +49,9 @@ def test_main_runs_phase_with_smoke_profile_and_artifact_root(tmp_path, monkeypa
             "data_dir": root / "data",
             "models_dir": root / "models",
             "sft_dataset_path": root / "data" / "sft_dataset.jsonl",
-            "sft_output_dir": root / "models" / "sft_model",
-            "sft_adapter_dir": root / "models" / "sft_model" / "adapter",
+                "sft_output_dir": root / "models" / "sft_model",
+                "sft_adapter_dir": root / "models" / "sft_model" / "adapter",
+                "grpo_output_dir": root / "models" / "grpo_model",
         },
     )
     monkeypatch.setattr("src.cli.run_phase.ensure_runtime_dirs", fake_ensure_runtime_dirs)
@@ -181,8 +182,9 @@ def test_sft_smoke_profile_reaches_drive_rooted_phase(tmp_path, monkeypatch, cap
             "results_dir": root / "results",
             "models_dir": root / "models",
             "sft_dataset_path": root / "data" / "sft_dataset.jsonl",
-            "sft_output_dir": root / "models" / "sft_model",
-            "sft_adapter_dir": root / "models" / "sft_adapter",
+                "sft_output_dir": root / "models" / "sft_model",
+                "sft_adapter_dir": root / "models" / "sft_adapter",
+                "grpo_output_dir": root / "models" / "grpo_model",
         },
     )
     monkeypatch.setattr("src.cli.run_phase.ensure_runtime_dirs", lambda config: None)
