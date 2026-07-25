@@ -12,4 +12,4 @@ def test_load_config_reads_model_and_task(tmp_path):
 def test_default_config_declares_sft_adapter_output():
     cfg = load_config("configs/default.yaml")
 
-    assert cfg["sft_adapter_dir"] == "models/sft_adapter"
+    assert cfg["sft_adapter_dir"] == "artifacts/2026-07-12-sft-full/models/sft_adapter"
