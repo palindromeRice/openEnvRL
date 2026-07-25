@@ -1,13 +1,22 @@
 from __future__ import annotations
 
+import gc
 from pathlib import Path
 from typing import Any
 
 from src.env.native_browsergym_task import NativeMiniWoBTaskConfig, NativeMiniWoBClickCheckboxesEnv
 
 
-def build_grpo_job_config(init_model_path: str, output_dir: str) -> dict[str, Any]:
-    return {
+def build_grpo_job_config(
+    init_model_path: str,
+    output_dir: str,
+    *,
+    max_steps: int = 50,
+    save_steps: int = 10,
+    resume_from_checkpoint: str | None = None,
+    **overrides: Any,
+) -> dict[str, Any]:
+    config = {
         "init_model_path": init_model_path,
         "output_dir": output_dir,
         "trainer": "unsloth_grpo",
@@ -18,14 +27,18 @@ def build_grpo_job_config(init_model_path: str, output_dir: str) -> dict[str, An
         "per_device_train_batch_size": 1,
         "gradient_accumulation_steps": 1,
         "num_generations": 2,
-        "max_steps": 50,
+        "max_steps": max_steps,
         "learning_rate": 5e-6,
         "logging_steps": 1,
-        "save_steps": 10,
+        "save_steps": save_steps,
         "task_name": "click-checkboxes",
         "benchmark": "miniwob",
         "miniwob_root": "/content/browsergym-assets",
     }
+    if resume_from_checkpoint is not None:
+        config["resume_from_checkpoint"] = resume_from_checkpoint
+    config.update(overrides)
+    return config
 
 
 def ensure_grpo_artifact_dirs(config: dict[str, Any]) -> None:
@@ -85,8 +98,10 @@ class BrowserGymToolEnv:
         self.reward = 0.0
         return self.last_observation.get("observation", "")
 
-    def _close(self) -> None:
-        self.env.close()
+    def close(self) -> None:
+        if self.env is not None:
+            self.env.close()
+            self.env = None
 
 
 def reward_func(completions: list[Any], **kwargs: Any) -> list[float]:
@@ -130,18 +145,43 @@ def build_grpo_trainer(config: dict[str, Any]) -> Any:
         use_vllm=False,
     )
     dataset = build_grpo_prompt_dataset()
-    return GRPOTrainer(
+    environments: list[BrowserGymToolEnv] = []
+
+    def environment_factory() -> BrowserGymToolEnv:
+        environment = BrowserGymToolEnv(config=config)
+        environments.append(environment)
+        return environment
+
+    trainer = GRPOTrainer(
         model=config["init_model_path"],
         reward_funcs=reward_func,
         train_dataset=dataset,
         args=training_args,
-        environment_factory=lambda: BrowserGymToolEnv(config=config),
+        environment_factory=environment_factory,
     )
+    trainer._openenvrl_environments = environments
+    return trainer
 
 
 def run_grpo_training(config: dict[str, Any]) -> Any:
     ensure_grpo_artifact_dirs(config)
+    resume = config.get("resume_from_checkpoint")
+    if resume is not None and not Path(resume).is_dir():
+        raise ValueError(f"GRPO resume checkpoint does not exist: {resume}")
     trainer = build_grpo_trainer(config)
-    trainer_stats = trainer.train()
-    trainer.save_model(config["output_dir"])
-    return trainer_stats
+    try:
+        trainer_stats = trainer.train(resume_from_checkpoint=resume)
+        trainer.save_model(config["output_dir"])
+        return trainer_stats
+    finally:
+        for environment in getattr(trainer, "_openenvrl_environments", []):
+            environment.close()
+        del trainer
+        gc.collect()
+        try:
+            import torch
+
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except ImportError:
+            pass
