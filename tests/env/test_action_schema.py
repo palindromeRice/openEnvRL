@@ -25,3 +25,8 @@ def test_parse_model_action_accepts_natural_language_click():
 def test_parse_model_action_accepts_bracketed_click_ref():
     action = parse_model_action("CLICK [21]")
     assert action == {"type": "CLICK", "ref": 21}
+
+
+def test_parse_model_action_accepts_noop():
+    assert parse_model_action("NOOP") == {"type": "NOOP"}
+    assert format_action({"type": "NOOP"})["canonical"] == "NOOP"

@@ -190,6 +190,9 @@ class NativeMiniWoBClickCheckboxesEnv:
 
     def step(self, action: dict[str, Any] | str) -> tuple[dict[str, Any], float, bool, dict[str, Any]]:
         structured = parse_model_action(action) if isinstance(action, str) else action
+        if structured.get("type") == "NOOP":
+            normalized = self._normalize({}, info={}, reward=0.0, done=False)
+            return normalized, 0.0, False, normalized["info"]
         action_text = format_action(structured)["action_str"]
         observation, reward, terminated, truncated, info = self._call_backend(self.backend.step, action_text)
         done = bool(terminated or truncated)

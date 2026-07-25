@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import gc
 from typing import Any
 
 from src.artifacts import DEFAULT_DRIVE_ARTIFACT_PREFIX, write_run_manifest
@@ -195,6 +196,33 @@ def run_grpo_phase(config: dict[str, Any]) -> dict[str, Any]:
     return run_grpo_training(job_config)
 
 
+def run_grpo_eval_phase(config: dict[str, Any], checkpoint_step: int) -> dict[str, Any]:
+    from src.agents.grpo_tool_policy import GRPOToolPolicy
+
+    checkpoint_path = Path(config["grpo_output_dir"]) / f"checkpoint-{checkpoint_step}"
+    if not checkpoint_path.is_dir():
+        raise ValueError(f"Missing GRPO checkpoint: {checkpoint_path}")
+    policy = GRPOToolPolicy(str(checkpoint_path))
+    try:
+        return evaluate_policy(
+            env_factory=_build_env_factory(config),
+            policy=policy,
+            num_episodes=config["default_eval_episodes"],
+            max_steps=config["max_steps_per_episode"],
+            max_retries_per_episode=config.get("env_retry_attempts", 2),
+            output_path=f"{config['results_dir']}/grpo_eval_step_{checkpoint_step}.json",
+        )
+    finally:
+        policy.close()
+        gc.collect()
+        try:
+            import torch
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except ImportError:
+            pass
+
+
 def run_analysis_phase(config: dict[str, Any], metrics: dict[str, dict[str, Any]]) -> str:
     return write_report(metrics, path=f"{config['results_dir']}/report.md")
 
@@ -235,7 +263,10 @@ def run_named_phase(name: str, context: dict[str, Any] | None = None) -> dict[st
     if name == "grpo_train":
         return {"phase": name, "result": run_grpo_phase(config)}
     if name == "grpo_eval":
-        return {"phase": name, "result": "Run after Colab GRPO completes"}
+        checkpoint_step = context.get("checkpoint_step")
+        if not isinstance(checkpoint_step, int):
+            raise ValueError("grpo_eval requires integer checkpoint_step")
+        return {"phase": name, "result": run_grpo_eval_phase(config, checkpoint_step)}
     if name == "analysis":
         return {"phase": name, "result": "Requires collected metrics JSON files"}
     return {"phase": name, "status": "unhandled"}
