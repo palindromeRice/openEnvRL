@@ -12,6 +12,7 @@ NATURAL_LANGUAGE_CLICK_RE = re.compile(
     r"""^click(?:\s+the\s+\w+)?\s+['"]([^'"]+)['"]\.?$""",
     re.IGNORECASE,
 )
+NOOP_RE = re.compile(r"^NOOP$", re.IGNORECASE)
 
 
 def strip_action_prefix(text: str) -> str:
@@ -23,6 +24,8 @@ def strip_action_prefix(text: str) -> str:
 
 def parse_model_action(text: str) -> dict[str, Any]:
     cleaned = strip_action_prefix(text)
+    if NOOP_RE.match(cleaned):
+        return {"type": "NOOP"}
     canonical_match = CANONICAL_CLICK_RE.match(cleaned)
     if canonical_match:
         return {"type": "CLICK", "ref": int(canonical_match.group(1))}
@@ -54,6 +57,8 @@ def parse_model_action(text: str) -> dict[str, Any]:
 
 def format_action(action: dict[str, Any]) -> dict[str, Any]:
     action_type = action.get("type")
+    if action_type == "NOOP":
+        return {"action_type": "noop", "action_str": "NOOP", "canonical": "NOOP"}
     if action_type == "CLICK":
         ref = action["ref"]
         return {
