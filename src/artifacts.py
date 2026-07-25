@@ -42,7 +42,8 @@ def prepare_drive_artifact_root(
     models_dir = resolved_root / "models"
     sft_output_dir = models_dir / "sft_model"
     sft_adapter_dir = models_dir / "sft_adapter"
-    for directory in (data_dir, results_dir, models_dir, sft_output_dir, sft_adapter_dir):
+    grpo_output_dir = models_dir / "grpo_model"
+    for directory in (data_dir, results_dir, models_dir, sft_output_dir, sft_adapter_dir, grpo_output_dir):
         directory.mkdir(parents=True, exist_ok=True)
 
     return {
@@ -52,6 +53,7 @@ def prepare_drive_artifact_root(
         "sft_dataset_path": data_dir / "sft_dataset.jsonl",
         "sft_output_dir": sft_output_dir,
         "sft_adapter_dir": sft_adapter_dir,
+        "grpo_output_dir": grpo_output_dir,
     }
 
 
@@ -222,4 +224,70 @@ def write_run_manifest(paths: Mapping[str, str | Path], config: Mapping[str, Any
         },
     }
     _write_json_atomic(root / "run_manifest.json", manifest)
+    return manifest
+
+
+def grpo_boundaries(config: Mapping[str, Any]) -> list[int]:
+    total_steps = config.get("total_steps")
+    checkpoint_every = config.get("checkpoint_every")
+    if not isinstance(total_steps, int) or total_steps <= 0:
+        raise ValueError("total_steps must be a positive integer")
+    if not isinstance(checkpoint_every, int) or checkpoint_every <= 0:
+        raise ValueError("checkpoint_every must be a positive integer")
+    if total_steps % checkpoint_every:
+        raise ValueError("total_steps must be divisible by checkpoint_every")
+    return list(range(checkpoint_every, total_steps + 1, checkpoint_every))
+
+
+def _validate_numeric_metrics(path: Path) -> dict[str, Any]:
+    try:
+        metrics = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError(f"Invalid GRPO metrics JSON: {path}") from error
+    required = ("success_rate", "average_reward", "average_steps")
+    if not isinstance(metrics, dict) or any(
+        not isinstance(metrics.get(key), (int, float)) or isinstance(metrics.get(key), bool)
+        for key in required
+    ):
+        raise ValueError(f"GRPO metrics require numeric fields: {path}")
+    return metrics
+
+
+def is_complete_grpo_boundary(paths: Mapping[str, str | Path], step: int) -> bool:
+    normalized = {key: Path(value) for key, value in paths.items()}
+    checkpoint = normalized["grpo_output_dir"] / f"checkpoint-{step}"
+    metric = normalized["results_dir"] / f"grpo_eval_step_{step}.json"
+    required = ("config.json", "tokenizer_config.json", "optimizer.pt", "scheduler.pt", "rng_state.pth", "trainer_state.json")
+    if not checkpoint.is_dir() or not metric.is_file() or any(not (checkpoint / name).is_file() for name in required):
+        return False
+    try:
+        _validate_numeric_metrics(metric)
+    except ValueError:
+        return False
+    return any((checkpoint / name).is_file() for name in ("model.safetensors", "model.safetensors.index.json", "pytorch_model.bin"))
+
+
+def write_grpo_run_manifest(paths: Mapping[str, str | Path], config: Mapping[str, Any]) -> dict[str, Any]:
+    normalized = {key: Path(value) for key, value in paths.items()}
+    boundaries = grpo_boundaries(config)
+    if any(not is_complete_grpo_boundary(normalized, step) for step in boundaries):
+        raise ValueError("Missing complete GRPO checkpoint or metric boundary")
+    output_dir = normalized["grpo_output_dir"]
+    _require_file(output_dir, ("config.json",), "GRPO final model config")
+    _require_file(output_dir, ("tokenizer_config.json",), "GRPO final tokenizer config")
+    _require_file(output_dir, ("model.safetensors", "model.safetensors.index.json", "pytorch_model.bin"), "GRPO final model weights")
+    metrics = {str(step): _validate_numeric_metrics(normalized["results_dir"] / f"grpo_eval_step_{step}.json") for step in boundaries}
+    root = normalized["models_dir"].parent
+    manifest = {
+        "run_id": root.name,
+        "sft_model_path": str(config["sft_model_path"]),
+        "boundaries": boundaries,
+        "checkpoints": {str(step): str(output_dir / f"checkpoint-{step}") for step in boundaries},
+        "metrics": metrics,
+        "model_directory": _model_directory_details(output_dir),
+        "git": _git_metadata(),
+        "package_versions": _package_versions(),
+        "config": _sanitize_config(dict(config)),
+    }
+    _write_json_atomic(root / "grpo_run_manifest.json", manifest)
     return manifest
