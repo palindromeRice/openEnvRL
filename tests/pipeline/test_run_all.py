@@ -5,7 +5,7 @@ from uuid import uuid4
 import pytest
 
 from src.data.storage import read_jsonl, write_jsonl
-from src.pipeline.run_all import list_pipeline_phases, run_named_phase
+from src.pipeline.run_all import list_pipeline_phases, run_grpo_eval_phase, run_named_phase
 
 
 def test_list_pipeline_phases_matches_spec_order():
@@ -174,3 +174,81 @@ def test_sft_manifest_phase_requires_drive_artifact_root(monkeypatch):
             "sft_manifest",
             context={"config": {"data_dir": "data", "artifact_root": "not-drive"}},
         )
+
+
+def test_grpo_eval_phase_persists_episode_diagnostics(tmp_path, monkeypatch):
+    checkpoint = tmp_path / "models" / "grpo_model" / "checkpoint-50"
+    checkpoint.mkdir(parents=True)
+    results_dir = tmp_path / "results"
+    captured = {}
+
+    class Policy:
+        def __init__(self, checkpoint_path):
+            captured["checkpoint_path"] = checkpoint_path
+
+        def close(self):
+            captured["closed"] = True
+
+    monkeypatch.setattr("src.agents.grpo_tool_policy.GRPOToolPolicy", Policy)
+    monkeypatch.setattr("src.pipeline.run_all._build_env_factory", lambda config: "env-factory")
+    monkeypatch.setattr(
+        "src.pipeline.run_all.evaluate_policy",
+        lambda **kwargs: captured.update(kwargs) or {"success_rate": 0.5},
+    )
+
+    result = run_grpo_eval_phase(
+        {
+            "grpo_output_dir": str(checkpoint.parent),
+            "results_dir": str(results_dir),
+            "default_eval_episodes": 2,
+            "max_steps_per_episode": 10,
+            "env_retry_attempts": 2,
+        },
+        checkpoint_step=50,
+    )
+
+    assert result == {"success_rate": 0.5}
+    assert captured["checkpoint_path"] == str(checkpoint)
+    assert captured["output_path"] == str(results_dir / "grpo_eval_step_50.json")
+    assert captured["episodes_output_path"] == str(
+        results_dir / "grpo_eval_step_50_episodes.jsonl"
+    )
+    assert captured["closed"] is True
+
+
+def test_grpo_eval_phase_can_score_an_arbitrary_model_path(tmp_path, monkeypatch):
+    """The SFT control: same tool-call evaluator, non-checkpoint model."""
+    sft_model = tmp_path / "sft_model"
+    sft_model.mkdir()
+    results_dir = tmp_path / "results"
+    captured = {}
+
+    class Policy:
+        def __init__(self, checkpoint_path):
+            captured["checkpoint_path"] = checkpoint_path
+
+        def close(self):
+            captured["closed"] = True
+
+    monkeypatch.setattr("src.agents.grpo_tool_policy.GRPOToolPolicy", Policy)
+    monkeypatch.setattr("src.pipeline.run_all._build_env_factory", lambda config: "env-factory")
+    monkeypatch.setattr(
+        "src.pipeline.run_all.evaluate_policy",
+        lambda **kwargs: captured.update(kwargs) or {"success_rate": 0.4},
+    )
+
+    result = run_grpo_eval_phase(
+        {
+            "grpo_output_dir": str(tmp_path / "models" / "grpo_model"),
+            "results_dir": str(results_dir),
+            "default_eval_episodes": 2,
+            "max_steps_per_episode": 10,
+            "env_retry_attempts": 2,
+        },
+        checkpoint_step="sft_control",
+        model_path=str(sft_model),
+    )
+
+    assert result == {"success_rate": 0.4}
+    assert captured["checkpoint_path"] == str(sft_model)
+    assert captured["output_path"] == str(results_dir / "grpo_eval_step_sft_control.json")

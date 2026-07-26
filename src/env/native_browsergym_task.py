@@ -141,6 +141,7 @@ class NativeMiniWoBClickCheckboxesEnv:
     def __init__(self, config: NativeMiniWoBTaskConfig | None = None, backend: Any | None = None) -> None:
         self.config = config or NativeMiniWoBTaskConfig()
         self._worker: _EventLoopWorker | None = None
+        self._current_state: dict[str, Any] | None = None
         self._uses_worker_thread = (
             backend is None
             and self.config.use_worker_thread
@@ -186,17 +187,20 @@ class NativeMiniWoBClickCheckboxesEnv:
 
     def reset(self) -> dict[str, Any]:
         observation, info = self._call_backend(self.backend.reset)
-        return self._normalize(observation, info=info, reward=0.0, done=False)
+        self._current_state = self._normalize(observation, info=info, reward=0.0, done=False)
+        return self._current_state
 
     def step(self, action: dict[str, Any] | str) -> tuple[dict[str, Any], float, bool, dict[str, Any]]:
         structured = parse_model_action(action) if isinstance(action, str) else action
         if structured.get("type") == "NOOP":
-            normalized = self._normalize({}, info={}, reward=0.0, done=False)
-            return normalized, 0.0, False, normalized["info"]
+            if self._current_state is None:
+                raise RuntimeError("Environment must be reset before NOOP.")
+            return self._current_state, 0.0, False, self._current_state["info"]
         action_text = format_action(structured)["action_str"]
         observation, reward, terminated, truncated, info = self._call_backend(self.backend.step, action_text)
         done = bool(terminated or truncated)
         normalized = self._normalize(observation, info=info, reward=float(reward), done=done)
+        self._current_state = normalized
         return normalized, float(reward), done, normalized["info"]
 
     def close(self) -> None:

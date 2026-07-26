@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import gc
+import inspect
 from pathlib import Path
 from typing import Any
 
@@ -22,13 +23,29 @@ def build_grpo_job_config(
         "trainer": "unsloth_grpo",
         "online_env_interaction": True,
         "reward_source": "native_env_reward",
-        "max_prompt_length": 512,
-        "max_completion_length": 512,
+        # Prompt now carries the task instruction; 512 risked left-truncating it away.
+        "max_prompt_length": 1024,
+        # A well-formed <tool_call> click is ~40 tokens. 512 only ever gets spent
+        # when the model rambles instead of emitting EOS -- which is exactly what
+        # the broken run did, 10 turns an episode. 128 is 3x headroom and caps the
+        # worst case 4x. Do not drop to 64; that was tried and truncated real calls.
+        "max_completion_length": 128,
+        # ponytail: keep the backward microbatch at 1. Vocab is 248320, so one
+        # logits tensor is tokens*248320*2B and several copies live at once --
+        # batch 4 OOMs the L4. num_generations grows the reward-contrast group;
+        # grad accum spends it 1 sequence at a time. One update per group of 4.
         "per_device_train_batch_size": 1,
-        "gradient_accumulation_steps": 1,
-        "num_generations": 2,
+        "gradient_accumulation_steps": 4,
+        "num_generations": 4,
+        # SFT already proved adamw_8bit on this model; frees ~4.8GB of optimizer state.
+        "optim": "adamw_8bit",
         "max_steps": max_steps,
-        "learning_rate": 5e-6,
+        # Gate r2 regressed 0.40 -> 0.20 against the SFT control: beta defaults to
+        # 0.0 in TRL, so nothing held the policy near SFT and entropy collapsed
+        # 0.387 -> 0.018 within 4 steps. KL anchor + gentler LR on a full
+        # finetune of an LoRA-trained model.
+        "beta": 0.04,
+        "learning_rate": 1e-6,
         "logging_steps": 1,
         "save_steps": save_steps,
         "task_name": "click-checkboxes",
@@ -74,7 +91,11 @@ class BrowserGymToolEnv:
         self.reward = 0.0
         self.done = False
         self.last_observation = self.env.reset()
-        return self.last_observation.get("observation", "Environment ready.")
+        # Same "Task:/Observation:" shape the evaluator uses (GRPOToolPolicy.build_prompt).
+        return (
+            f"Task: {self.last_observation.get('instruction', '')}\n"
+            f"Observation: {self.last_observation.get('observation', 'Environment ready.')}"
+        )
 
     def get_reward(self) -> float:
         """Return the cumulative reward for this episode. Called by TRL after rollout."""
@@ -98,7 +119,7 @@ class BrowserGymToolEnv:
         self.reward = 0.0
         return self.last_observation.get("observation", "")
 
-    def close(self) -> None:
+    def _close(self) -> None:
         if self.env is not None:
             self.env.close()
             self.env = None
@@ -130,20 +151,27 @@ def build_grpo_prompt_dataset(num_rows: int = 32) -> Any:
 def build_grpo_trainer(config: dict[str, Any]) -> Any:
     from trl import GRPOConfig, GRPOTrainer
 
-    training_args = GRPOConfig(
+    training_kwargs = dict(
         learning_rate=config["learning_rate"],
         gradient_accumulation_steps=config["gradient_accumulation_steps"],
         per_device_train_batch_size=config["per_device_train_batch_size"],
         num_generations=config["num_generations"],
         generation_batch_size=config.get("generation_batch_size", config["num_generations"]),
         max_completion_length=config["max_completion_length"],
+        beta=config["beta"],
         max_steps=config["max_steps"],
         logging_steps=config["logging_steps"],
         save_steps=config["save_steps"],
         output_dir=config["output_dir"],
+        optim=config.get("optim", "adamw_torch"),
         report_to="none",
         use_vllm=False,
     )
+    # Newer TRL releases removed this option. Keep it for older supported
+    # releases without passing an invalid keyword to the current Colab runtime.
+    if "max_prompt_length" in inspect.signature(GRPOConfig).parameters:
+        training_kwargs["max_prompt_length"] = config["max_prompt_length"]
+    training_args = GRPOConfig(**training_kwargs)
     dataset = build_grpo_prompt_dataset()
     environments: list[BrowserGymToolEnv] = []
 
@@ -175,7 +203,7 @@ def run_grpo_training(config: dict[str, Any]) -> Any:
         return trainer_stats
     finally:
         for environment in getattr(trainer, "_openenvrl_environments", []):
-            environment.close()
+            environment._close()
         del trainer
         gc.collect()
         try:

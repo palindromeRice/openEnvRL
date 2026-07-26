@@ -30,3 +30,32 @@ def test_run_boundaries_skips_complete_boundary(monkeypatch, tmp_path):
     monkeypatch.setattr(Path, "is_dir", lambda self: True)
     assert run_grpo_full.run_boundaries({"total_steps": 100, "checkpoint_every": 50, "sft_model_path": "/sft"}, paths) == {"ok": True}
     assert calls == [("train", 100), ("eval", 100)]
+
+
+def test_run_boundaries_records_actual_training_args(monkeypatch, tmp_path):
+    """Manifest must record what GRPO really used, not configs/default.yaml."""
+    paths = {"grpo_output_dir": tmp_path / "models", "results_dir": tmp_path / "results", "models_dir": tmp_path / "models"}
+    for path in paths.values():
+        path.mkdir(parents=True, exist_ok=True)
+    seen = {}
+    monkeypatch.setattr(run_grpo_full, "is_complete_grpo_boundary", lambda paths, step: True)
+    monkeypatch.setattr(run_grpo_full, "write_grpo_run_manifest", lambda paths, config: seen.update(config) or {"ok": True})
+    monkeypatch.setattr(Path, "is_dir", lambda self: True)
+
+    # Stale yaml values that must NOT end up in the manifest as the run record.
+    run_grpo_full.run_boundaries(
+        {
+            "total_steps": 50,
+            "checkpoint_every": 50,
+            "sft_model_path": "/sft",
+            "num_generations": 8,
+            "max_completion_length": 512,
+        },
+        paths,
+    )
+
+    recorded = seen["grpo_training_args"]
+    assert recorded["num_generations"] == 4
+    assert recorded["max_completion_length"] == 128
+    assert recorded["optim"] == "adamw_8bit"
+    assert recorded["max_steps"] == 50

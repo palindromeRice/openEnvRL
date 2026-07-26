@@ -196,10 +196,21 @@ def run_grpo_phase(config: dict[str, Any]) -> dict[str, Any]:
     return run_grpo_training(job_config)
 
 
-def run_grpo_eval_phase(config: dict[str, Any], checkpoint_step: int) -> dict[str, Any]:
+def run_grpo_eval_phase(
+    config: dict[str, Any], checkpoint_step: int | str, model_path: str | None = None
+) -> dict[str, Any]:
+    """Score a model with the tool-call evaluator.
+
+    model_path scores an arbitrary model (e.g. the SFT control) under the same
+    evaluator as the checkpoints, so the numbers are actually comparable.
+    """
     from src.agents.grpo_tool_policy import GRPOToolPolicy
 
-    checkpoint_path = Path(config["grpo_output_dir"]) / f"checkpoint-{checkpoint_step}"
+    checkpoint_path = (
+        Path(model_path)
+        if model_path
+        else Path(config["grpo_output_dir"]) / f"checkpoint-{checkpoint_step}"
+    )
     if not checkpoint_path.is_dir():
         raise ValueError(f"Missing GRPO checkpoint: {checkpoint_path}")
     policy = GRPOToolPolicy(str(checkpoint_path))
@@ -211,6 +222,9 @@ def run_grpo_eval_phase(config: dict[str, Any], checkpoint_step: int) -> dict[st
             max_steps=config["max_steps_per_episode"],
             max_retries_per_episode=config.get("env_retry_attempts", 2),
             output_path=f"{config['results_dir']}/grpo_eval_step_{checkpoint_step}.json",
+            episodes_output_path=(
+                f"{config['results_dir']}/grpo_eval_step_{checkpoint_step}_episodes.jsonl"
+            ),
         )
     finally:
         policy.close()

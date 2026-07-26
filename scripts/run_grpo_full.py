@@ -27,6 +27,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--checkpoint-every", type=int, default=50)
     parser.add_argument("--eval-episodes", type=int, default=50)
     parser.add_argument("--resume-from-checkpoint")
+    # Local disk, not Drive: miniwob is thousands of small files and Drive FUSE crawls.
+    parser.add_argument("--miniwob-root", default="/content/browsergym-assets")
     parser.add_argument("--config", default="configs/default.yaml")
     return parser
 
@@ -43,6 +45,15 @@ def _validate_sft_model(path: Path) -> None:
 def run_boundaries(config: dict, paths: dict[str, Path], resume_from_checkpoint: str | None = None) -> dict:
     boundaries = grpo_boundaries(config)
     resume = resume_from_checkpoint
+    # Provenance: build_grpo_job_config owns the real hyperparameters and ignores
+    # configs/default.yaml, so record it or the manifest misstates what was run.
+    config["grpo_training_args"] = build_grpo_job_config(
+        config["sft_model_path"],
+        str(paths["grpo_output_dir"]),
+        max_steps=config["total_steps"],
+        save_steps=config["checkpoint_every"],
+        miniwob_root=config.get("miniwob_root", "/content/browsergym-assets"),
+    )
     for step in boundaries:
         checkpoint = paths["grpo_output_dir"] / f"checkpoint-{step}"
         if is_complete_grpo_boundary(paths, step):
@@ -86,7 +97,7 @@ def main(argv: list[str] | None = None) -> int:
     paths = prepare_drive_artifact_root(Path(args.artifact_root))
     config.update({key: str(value) for key, value in paths.items()})
     config["artifact_root"] = args.artifact_root
-    config["miniwob_root"] = str(Path(args.artifact_root) / "browsergym-assets")
+    config["miniwob_root"] = args.miniwob_root
     manifest = run_boundaries(config, paths, args.resume_from_checkpoint)
     print(manifest)
     return 0
