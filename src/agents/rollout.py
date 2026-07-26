@@ -18,16 +18,18 @@ def run_episode(env: Any, policy: Any, max_steps: int) -> dict[str, Any]:
     for _ in range(max_steps):
         action = policy.act(instruction, observation)
         next_state, reward, done, info = env.step(action)
-        steps.append(
-            build_step_record(
-                instruction=instruction,
-                observation=observation,
-                action=action,
-                reward=reward,
-                done=done,
-                info=info,
-            )
+        step = build_step_record(
+            instruction=instruction,
+            observation=observation,
+            action=action,
+            reward=reward,
+            done=done,
+            info=info,
         )
+        diagnostics_fn = getattr(policy, "get_last_diagnostics", None)
+        if callable(diagnostics_fn):
+            step["policy_diagnostics"] = diagnostics_fn()
+        steps.append(step)
         total_reward += reward
         final_info = info
         instruction = next_state["instruction"]

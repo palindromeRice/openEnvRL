@@ -5,6 +5,9 @@ datasets>=3.0.0
 trl>=0.19.0
 accelerate>=1.0.0
 peft>=0.17.0
+# GRPO uses optim="adamw_8bit"; SFT got this transitively via unsloth.
+# Ships prebuilt CUDA wheels -- no source compilation.
+bitsandbytes>=0.43.0
 openenv
 browsergym-miniwob>=0.14.3
 matplotlib>=3.8.0
@@ -14,5 +17,5 @@ jmespath>=1.0.1
 openenv-browsergym-env @ git+https://huggingface.co/spaces/openenv/browsergym_env
 
 torch>=2.7.0
-# Flash-attention pre-built wheel (Python 3.12, CUDA 12, PyTorch 2.7, ABI False)
-https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.3/flash_attn-2.8.3+cu12torch2.7cxx11abiFALSE-cp312-cp312-linux_x86_64.whl
+# Native PyTorch SDPA. Do not compile flash-attn on Colab; install a wheel only
+# when its Python, PyTorch, CUDA, and ABI targets exactly match the runtime.

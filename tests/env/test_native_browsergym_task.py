@@ -85,6 +85,23 @@ def test_native_env_normalizes_reset_and_step():
     assert backend.closed is True
 
 
+def test_native_env_noop_preserves_current_state():
+    backend = DummyBackend()
+    env = NativeMiniWoBClickCheckboxesEnv(
+        config=NativeMiniWoBTaskConfig(task_name="click-checkboxes"),
+        backend=backend,
+    )
+    current_state = env.reset()
+
+    next_state, reward, done, info = env.step("NOOP")
+
+    assert next_state == current_state
+    assert reward == 0.0
+    assert done is False
+    assert info["success"] is False
+    assert backend.actions == []
+
+
 def test_native_env_builds_text_observation_from_axtree_object():
     env = NativeMiniWoBClickCheckboxesEnv(
         config=NativeMiniWoBTaskConfig(task_name="click-checkboxes"),
