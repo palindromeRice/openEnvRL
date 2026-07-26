@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from src.agents.rollout import run_episode
+from src.data.storage import write_jsonl
 from src.env.openenv_task import OpenEnvTransientError
 from src.eval.metrics import aggregate_metrics
 from src.utils.logging import write_json
@@ -15,6 +16,7 @@ def evaluate_policy(
     max_steps: int,
     max_retries_per_episode: int = 2,
     output_path: str | None = None,
+    episodes_output_path: str | None = None,
 ) -> dict[str, float]:
     episodes = []
     for _ in range(num_episodes):
@@ -39,6 +41,8 @@ def evaluate_policy(
         if last_error is not None:
             raise last_error
     metrics = aggregate_metrics(episodes)
+    if episodes_output_path is not None:
+        write_jsonl(episodes_output_path, episodes)
     if output_path is not None:
         write_json(output_path, metrics)
     return metrics

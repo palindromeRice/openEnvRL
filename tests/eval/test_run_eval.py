@@ -1,3 +1,4 @@
+from src.data.storage import read_jsonl
 from src.env.openenv_task import OpenEnvTransientError
 from src.eval.run_eval import evaluate_policy
 
@@ -75,3 +76,27 @@ def test_evaluate_policy_retries_transient_openenv_errors():
     assert metrics["success_rate"] == 1.0
     assert len(created) == 2
     assert all(env.closed for env in created)
+
+
+def test_evaluate_policy_saves_episode_diagnostics(tmp_path):
+    class DiagnosticPolicy(DummyPolicy):
+        def get_last_diagnostics(self):
+            return {
+                "raw_completion": "<tool_call>raw</tool_call>",
+                "parsed_action": "CLICK ref=1",
+            }
+
+    episodes_path = tmp_path / "episodes.jsonl"
+    evaluate_policy(
+        env_factory=DummyEnv,
+        policy=DiagnosticPolicy(),
+        num_episodes=1,
+        max_steps=1,
+        episodes_output_path=str(episodes_path),
+    )
+
+    episodes = read_jsonl(episodes_path)
+    assert episodes[0]["steps"][0]["policy_diagnostics"] == {
+        "raw_completion": "<tool_call>raw</tool_call>",
+        "parsed_action": "CLICK ref=1",
+    }
