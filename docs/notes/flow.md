@@ -104,7 +104,7 @@ flowchart LR
     A1["build_article_analysis.py"] --> A2["artifact loaders"]
     A2 --> A3["schema + metric validation"]
     A3 --> A4["episode summaries + trace views"]
-    A4 --> A5["plots.py: Figures 1–7"]
+    A4 --> A5["plots.py: article Figures 1, 5, 7"]
     A4 --> A6["report.py: article"]
     A3 --> A7["schema_validation.json/md"]
     A5 --> A8["figure_manifest + figures"]
@@ -134,9 +134,9 @@ Inputs:
 | `run_grpo_training` | SFT model + config | GRPO checkpoint |
 | `GRPOToolPolicy` | checkpoint + observation | parsed tool action |
 | `artifact_analysis` | JSON/JSONL/manifests | validated records + provenance + trace views |
-| `plots.py` | validated records | seven figures + caption metadata |
+| `plots.py` | validated records | article Figures 1, 5, 7 + caption metadata |
 | `report.py` | metrics/traces/figures | article + validation report |
 
 ## Evidence boundary
 
-Analysis reads saved artifacts only. `artifact_analysis.py` validates metrics, manifests, SFT demonstrations, and final GRPO episode records; it emits episode summaries and trace views. `plots.py` renders seven deterministic figures with caption/source metadata. `report.py` writes article + schema reports. `build_article_analysis.py` orchestrates this path. Verified output: `results/article_analysis/`. Tool-use queue shown in figures is derived from raw completions + executed steps; queue is not standalone persisted field. Base/SFT model-eval traces unavailable; no invented cross-stage action distributions.
+Analysis reads saved artifacts only. `artifact_analysis.py` validates metrics, manifests, SFT demonstrations, and final GRPO episode records; it emits episode summaries and trace views. Planned redesign: `plots.py` renders article Figures 1, 5, and 7 only; Figure 5 will classify final-GRPO failures from instruction, initial control mapping, executed action, and terminal state. `report.py` writes article + schema reports. `build_article_analysis.py` orchestrates this path. Verified output before redesign: `results/article_analysis/`. Base/SFT model-eval traces unavailable; no invented cross-stage action distributions.
