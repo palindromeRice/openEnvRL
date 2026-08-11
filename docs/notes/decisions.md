@@ -2,6 +2,14 @@
 
 Short log. Add newest decision at top.
 
+## 2026-08-12 — Final-GRPO reliability visual redesign
+
+- Keep article Figures 1, 5, and 7 only; remove opaque tool-trace, process, and lineage diagrams.
+- Replace Figure 5 with a 50-episode final-GRPO reliability audit: outcome, deterministic failure behavior, and steps by outcome.
+- Failure categories are behavioral trace classifications, not model-intent or mechanistic claims.
+- Evidence: corrected final GRPO episode JSONL only; no new training/evaluation/model loading.
+- Execution: design approved; implementation pending plan and review.
+
 ## 2026-08-11 — End-to-end verification
 
 - CLI ran against real SFT + corrected final GRPO artifacts.
