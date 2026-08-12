@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from src.analysis.artifact_analysis import StageMetric, TraceView
+from src.analysis.artifact_analysis import load_final_grpo_episodes, summarize_failure_behavior, summarize_final_episodes
 from src.analysis.plots import (
     plot_artifact_lineage,
     plot_capability_radar,
@@ -82,3 +83,21 @@ def test_radar_caption_discloses_binary_reward_and_step_caveat(tmp_path):
 
     assert "binary" in caption.lower()
     assert "early" in caption.lower()
+
+
+def test_reliability_audit_has_failure_taxonomy_and_steps(tmp_path):
+    from src.analysis.plots import plot_episode_reliability_audit
+
+    records = load_final_grpo_episodes(Path("tests/fixtures/analysis/final_grpo_episodes.jsonl"))
+    summary = summarize_final_episodes(records)
+    summary["failure_behavior"] = {"counts": {
+        "no_submit_after_correct_selection": 2,
+        "premature_submit": 2,
+        "wrong_selection_then_submit": 2,
+    }}
+    metadata = plot_episode_reliability_audit(summary, tmp_path / "figure5.png")
+
+    _assert_output(metadata, tmp_path / "figure5.png")
+    caption = metadata.caption_path.read_text(encoding="utf-8")
+    assert "44/50" in caption
+    assert "no Submit" in caption
