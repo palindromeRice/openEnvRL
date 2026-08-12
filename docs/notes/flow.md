@@ -142,3 +142,7 @@ Inputs:
 ## Evidence boundary
 
 Analysis reads saved artifacts only. `artifact_analysis.py` validates metrics, manifests, SFT demonstrations, and final GRPO episode records; it emits episode summaries, trace views, and deterministic failed-episode classifications. `plots.py` renders article Figures 1, 5, 6, and 7; Figure 5 shows episode outcomes, Figure 6 shows failure modes. `report.py` writes article + schema reports. `build_article_analysis.py` orchestrates this path. Base/SFT model-eval traces unavailable; no invented cross-stage action distributions.
+
+Publication boundary: runtime figures/reports are generated under ignored
+`results/article_analysis/`; approved PNGs are copied to tracked
+`figures/article_analysis/` for review and publication.
