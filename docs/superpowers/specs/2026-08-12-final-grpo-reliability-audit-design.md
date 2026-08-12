@@ -28,8 +28,8 @@ Three panels, in reading order:
 2. Observed failure behavior, using only deterministic classifications from
    saved actions and terminal state:
    - correct selections, no `Submit`: 2;
-   - premature `Submit` before all requested checkboxes: 3;
-   - wrong-checkbox selections then `Submit`: 1.
+   - premature `Submit` before all requested checkboxes: 2;
+   - wrong-checkbox selections then `Submit`: 2.
 3. Executed steps by outcome: show successful episodes and failed episodes;
    retain 10-step no-Submit outliers visibly.
 
@@ -54,8 +54,8 @@ Priority order:
    click maps to a non-requested label.
 
 Fail loudly on a record that cannot be classified, instead of placing it in an
-unexplained bucket. Episode 3, 27, 39, 40, 42, and 44 in source order provide
-current expected failure classifications.
+unexplained bucket. The six failed records in the corrected final JSONL provide
+the expected failure classifications.
 
 ## Evidence boundary
 

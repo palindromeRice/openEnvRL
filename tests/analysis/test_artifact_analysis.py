@@ -13,6 +13,10 @@ from src.analysis.artifact_analysis import (
     extract_representative_trace,
     summarize_final_episodes,
     validate_episode_records,
+    classify_failure,
+    summarize_failure_behavior,
+    EpisodeRecord,
+    EpisodeStep,
 )
 
 
@@ -131,3 +135,53 @@ def test_trace_preserves_raw_completion_and_marks_queue_as_derived():
     assert len(trace.raw_completions) == 3
     assert trace.executed_actions == ("click('21')", "click('24')", "click('33')")
     assert trace.queue_is_derived is True
+
+
+def test_failure_summary_explains_all_final_failures():
+    records = _classification_fixture()
+    summary = summarize_failure_behavior(records)
+
+    assert summary["counts"] == {
+        "no_submit_after_correct_selection": 2,
+        "premature_submit": 2,
+        "wrong_selection_then_submit": 2,
+    }
+    assert sum(summary["counts"].values()) == 6
+
+
+def test_failure_classifier_uses_observable_behavior_only():
+    records = _classification_fixture()
+    failed = [record for record in records if not record.success]
+
+    assert {classify_failure(record).category for record in failed} == {
+        "no_submit_after_correct_selection",
+        "premature_submit",
+        "wrong_selection_then_submit",
+    }
+
+
+def _classification_fixture():
+    def record(number, actions):
+        observation = "RootWebArea\n[18] checkbox 'X'\n[21] checkbox 'A'\n[24] checkbox 'B'\n[33] button 'Submit'"
+        steps = tuple(
+            EpisodeStep(
+                instruction="Select A, B and click Submit.",
+                observation=observation,
+                action=action,
+                reward=0.0,
+                done=index == len(actions) - 1,
+                raw_completion=None,
+                parsed_action=action,
+            )
+            for index, action in enumerate(actions)
+        )
+        return EpisodeRecord(f"fixture-{number}", steps, False, 0.0, number)
+
+    return (
+        record(1, ("click('21')", "click('24')")),
+        record(2, ("click('21')", "click('24')")),
+        record(3, ("click('21')", "click('33')")),
+        record(4, ("click('21')", "click('33')")),
+        record(5, ("click('18')", "click('33')")),
+        record(6, ("click('18')", "click('33')")),
+    )
