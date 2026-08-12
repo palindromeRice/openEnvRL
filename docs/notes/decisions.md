@@ -10,6 +10,12 @@ Short log. Add newest decision at top.
 - Evidence: corrected final GRPO episode JSONL only; no new training/evaluation/model loading.
 - Execution: implemented and verified; direct source-artifact inspection corrected counts to 2/2/2.
 
+## 2026-08-12 — Tracked publication figure directory
+
+- Keep generated reports under ignored `results/article_analysis/`.
+- Copy approved publication PNGs into tracked `figures/article_analysis/`; keep captions/runtime metadata under ignored results.
+- Track Figures 1, 5, 6, and 7 for article review/versioning; do not track runtime JSON/schema outputs.
+
 ## 2026-08-11 — End-to-end verification
 
 - CLI ran against real SFT + corrected final GRPO artifacts.
