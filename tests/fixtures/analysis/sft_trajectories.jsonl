@@ -1,0 +1,1 @@
+{"episode_id":"8d8e2b8c-c17c-4c12-aa1c-ea58d1713f47","steps":[{"instruction":"Select ZHCPQJ and click Submit.","observation":"[18] checkbox 'ZHCPQJ'\n[36] button 'Submit'","action":"CLICK ref=36","reward":1.0,"done":true}],"success":true,"total_reward":1.0,"num_steps":1}
