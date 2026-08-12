@@ -33,7 +33,16 @@ def test_build_article_report_contains_provenance_and_limits(tmp_path):
     )
     figure = FigureMetadata("figure1", tmp_path / "figure1.png", tmp_path / "figure1.caption.md", "metrics", (Path("grpo.json"),))
 
-    report = build_article_report(metrics, {"success_count": 44, "failure_count": 6}, trace, [figure])
+    report = build_article_report(metrics, {
+        "success_count": 44,
+        "failure_count": 6,
+        "episode_count": 50,
+        "failure_behavior": {"counts": {
+            "no_submit_after_correct_selection": 2,
+            "premature_submit": 2,
+            "wrong_selection_then_submit": 2,
+        }},
+    }, trace, [figure])
 
     assert "30%" in report
     assert "58%" in report
@@ -42,6 +51,8 @@ def test_build_article_report_contains_provenance_and_limits(tmp_path):
     assert "separate randomized" in report.lower()
     assert "invalid intermediate" not in report.lower()
     assert "grpo.json" in report
+    assert "no Submit" in report
+    assert "premature Submit" in report
 
 
 def test_schema_markdown_and_figure_manifest_are_source_explicit(tmp_path):
