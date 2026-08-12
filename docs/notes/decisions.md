@@ -6,9 +6,9 @@ Short log. Add newest decision at top.
 
 - Keep article Figures 1, 5, and 7 only; remove opaque tool-trace, process, and lineage diagrams.
 - Replace Figure 5 with a 50-episode final-GRPO reliability audit: outcome, deterministic failure behavior, and steps by outcome.
-- Failure categories are behavioral trace classifications, not model-intent or mechanistic claims.
+- Failure categories are behavioral trace classifications, not model-intent or mechanistic claims: 2 no-Submit, 2 premature-Submit, 2 wrong-selection.
 - Evidence: corrected final GRPO episode JSONL only; no new training/evaluation/model loading.
-- Execution: design approved; implementation plan written; execution starting.
+- Execution: implemented and verified; direct source-artifact inspection corrected counts to 2/2/2.
 
 ## 2026-08-11 — End-to-end verification
 

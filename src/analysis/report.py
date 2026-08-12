@@ -47,11 +47,17 @@ def build_article_report(
     for figure in figure_manifest:
         sources = ", ".join(str(path) for path in figure.source_paths)
         figure_lines.append(f"- `{figure.figure_id}`: `{figure.figure_path}` — source: `{sources}`")
-    trace_actions = " → ".join(trace.executed_actions)
+    failure_counts = (episode_summary.get("failure_behavior") or {}).get("counts", {})
+    failure_text = (
+        "Observed failed-episode behavior: "
+        f"{failure_counts.get('no_submit_after_correct_selection', 0)} correct selections with no Submit, "
+        f"{failure_counts.get('premature_submit', 0)} premature Submit, and "
+        f"{failure_counts.get('wrong_selection_then_submit', 0)} wrong selection then Submit."
+    )
     sections = [
         "# From Demonstrations to Reward Learning: An Inspectable Browser Agent",
         "## Summary",
-        "This engineering report uses existing artifacts only. It follows a small browser agent from Base to SFT to corrected final GRPO, then opens one tool-use trace so success is tied to observable actions and rewards.",
+        "This engineering report uses existing artifacts only. It follows a small browser agent from Base to SFT to corrected final GRPO, then audits all 50 final evaluation episodes for reliability and observable failure behavior.",
         "## Stage comparison",
         build_comparison_table(metrics),
         "Headline success progression: "
@@ -61,11 +67,10 @@ def build_article_report(
             if stage in metrics
         ),
         "The stages use separate randomized evaluations. Scores are descriptive, not paired per-puzzle comparisons.",
-        "## What the agent does",
-        f"Representative instruction: `{trace.instruction}`\n\nExecuted action sequence: `{trace_actions}`\n\nFinal reward: `{trace.rewards[-1] if trace.rewards else 0.0}`.",
-        "Raw model completion, parsed action, executed browser action, and reward are separate evidence layers. The queue shown in figures is derived from saved trace records; it is not a standalone persisted field.",
-        "## Final GRPO episode evidence",
+        "## Final GRPO reliability audit",
         f"The corrected final evaluation contains `{episode_summary.get('success_count', 0)}/{episode_summary.get('episode_count', 0)}` successful episodes and `{episode_summary.get('failure_count', 0)}` failures.",
+        failure_text,
+        "These are deterministic classifications of observed traces, not inferred model intentions. The audit covers final GRPO only; Base and SFT episode traces are unavailable.",
         "## Interpretability boundary",
         "This is behavioral trace interpretability and procedural transparency, not neuron-level mechanistic interpretability. Durable Base/SFT model-evaluation traces are unavailable, so no cross-stage action distributions are claimed.",
         "## Reproducibility artifacts",

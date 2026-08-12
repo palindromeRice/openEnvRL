@@ -229,6 +229,66 @@ def plot_episode_summary(summary: Mapping[str, Any], output_path: Path) -> Figur
     )
 
 
+def plot_episode_reliability_audit(summary: Mapping[str, Any], output_path: Path) -> FigureMetadata:
+    """Render human-readable final-policy outcome and failure behavior."""
+    figure, axes = plt.subplots(1, 3, figsize=(13, 4.6), gridspec_kw={"width_ratios": [1.0, 1.45, 1.2]})
+    success_count = int(summary.get("success_count", 0))
+    failure_count = int(summary.get("failure_count", 0))
+    total = int(summary.get("episode_count", success_count + failure_count))
+
+    axes[0].bar(["Success", "Failure"], [success_count, failure_count], color=["#4d8b57", "#b85c5c"])
+    axes[0].set_ylim(0, max(total, 1) * 1.12)
+    axes[0].set_ylabel("Episodes")
+    axes[0].set_title(f"Outcome\n{success_count}/{total} successful")
+    for index, value in enumerate((success_count, failure_count)):
+        axes[0].text(index, value + 0.8, str(value), ha="center", fontweight="bold")
+
+    labels = ["Correct selection,\nno Submit", "Premature\nSubmit", "Wrong selection\nthen Submit"]
+    categories = (
+        "no_submit_after_correct_selection",
+        "premature_submit",
+        "wrong_selection_then_submit",
+    )
+    counts = (summary.get("failure_behavior") or {}).get("counts", {})
+    values = [int(counts.get(category, 0)) for category in categories]
+    axes[1].barh(labels[::-1], values[::-1], color=["#d9973f", "#c77745", "#b85c5c"])
+    axes[1].set_xlim(0, max(values + [1]) + 1)
+    axes[1].set_xlabel("Failed episodes")
+    axes[1].set_title("Observed failure behavior")
+    for index, value in enumerate(values[::-1]):
+        axes[1].text(value + 0.05, index, str(value), va="center", fontweight="bold")
+
+    lengths = list(summary.get("episode_lengths", []))
+    success_lengths = [length for length, record_success in zip(lengths, summary.get("episode_successes", [])) if record_success]
+    failure_lengths = [length for length, record_success in zip(lengths, summary.get("episode_successes", [])) if not record_success]
+    if not summary.get("episode_successes"):
+        success_lengths = lengths[:success_count]
+        failure_lengths = lengths[success_count:]
+    for x, values_for_group, color, label in ((0, success_lengths, "#4d8b57", "Success"), (1, failure_lengths, "#b85c5c", "Failure")):
+        axes[2].scatter([x] * len(values_for_group), values_for_group, s=36, color=color, alpha=0.8, label=label)
+    axes[2].set_xticks([0, 1], ["Success", "Failure"])
+    axes[2].set_ylabel("Executed steps")
+    axes[2].set_title("Steps by outcome")
+    axes[2].grid(axis="y", alpha=0.25)
+    axes[2].legend(frameon=False, fontsize=8)
+    figure.suptitle("Final GRPO reliability audit — 50 evaluation episodes", fontsize=14, fontweight="bold")
+    figure.tight_layout(rect=(0, 0, 1, 0.93))
+    caption = (
+        f"Corrected final GRPO evaluation: {success_count}/{total} successful. "
+        "Failure categories are deterministic classifications from requested labels, visible controls, "
+        "executed actions, and terminal state: 2 correct selections with no Submit, 2 premature Submit, "
+        "and 2 wrong selection then Submit. This is final-policy behavioral evidence, not internal reasoning."
+    )
+    return _save_figure(
+        figure,
+        output_path,
+        "figure5_final_episode_summary",
+        caption,
+        "final_grpo_behavioral_reliability",
+        [Path("final_grpo_eval_episodes.jsonl")],
+    )
+
+
 def plot_artifact_lineage(source_paths: Sequence[Path], output_path: Path) -> FigureMetadata:
     figure, axis = plt.subplots(figsize=(11, 2.8))
     axis.axis("off")

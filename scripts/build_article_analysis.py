@@ -19,6 +19,7 @@ from src.analysis.artifact_analysis import (
     load_sft_demonstrations,
     load_stage_metrics,
     reconcile_grpo_metrics,
+    summarize_failure_behavior,
     summarize_final_episodes,
     validate_episode_records,
 )
@@ -26,11 +27,8 @@ from src.analysis.plots import (
     FigureMetadata,
     plot_artifact_lineage,
     plot_capability_radar,
-    plot_demonstration_evaluation_cards,
-    plot_episode_summary,
-    plot_evaluator_flow,
+    plot_episode_reliability_audit,
     plot_stage_progression,
-    plot_tool_use_timeline,
 )
 from src.analysis.report import (
     build_article_report,
@@ -86,29 +84,22 @@ def run_analysis(
     validation = validate_episode_records(records, grpo_episodes_path, expected_count=50)
     if not reconcile_grpo_metrics(records, metrics["grpo"]):
         raise ArtifactValidationError("final GRPO aggregate does not reconcile with per-episode records")
-    sft_demonstrations = load_sft_demonstrations(sft_trajectories_path, limit=1)
+    load_sft_demonstrations(sft_trajectories_path, limit=1)
     load_manifest(sft_manifest_path)
     load_manifest(grpo_manifest_path)
     summary = summarize_final_episodes(records)
+    summary["failure_behavior"] = summarize_failure_behavior(records)
     trace = extract_representative_trace(next(record for record in records if record.success))
 
     figure_paths = [
         output_dir / "figure1_stage_progression.png",
-        output_dir / "figure2_tool_use_timeline.png",
-        output_dir / "figure3_demonstration_evaluation_cards.png",
-        output_dir / "figure4_evaluator_flow.png",
         output_dir / "figure5_final_episode_summary.png",
-        output_dir / "figure6_artifact_lineage.png",
         output_dir / "figure7_capability_radar.png",
     ]
     figures = [
         plot_stage_progression(metrics, figure_paths[0]),
-        _with_sources(plot_tool_use_timeline(trace, figure_paths[1]), [grpo_episodes_path]),
-        _with_sources(plot_demonstration_evaluation_cards(sft_demonstrations, [trace], figure_paths[2]), [sft_trajectories_path, grpo_episodes_path]),
-        _with_sources(plot_evaluator_flow(figure_paths[3]), [Path("src/agents/grpo_tool_policy.py")]),
-        _with_sources(plot_episode_summary(summary, figure_paths[4]), [grpo_episodes_path]),
-        _with_sources(plot_artifact_lineage([sft_trajectories_path, sft_root / "data" / "sft_dataset.jsonl", sft_root / "models" / "sft_model", grpo_root / "models" / "grpo_model"], figure_paths[5]), [sft_trajectories_path, sft_root / "data" / "sft_dataset.jsonl", grpo_root / "models" / "grpo_model"]),
-        plot_capability_radar(metrics, figure_paths[6]),
+        _with_sources(plot_episode_reliability_audit(summary, figure_paths[1]), [grpo_episodes_path]),
+        plot_capability_radar(metrics, figure_paths[2]),
     ]
     figure_manifest_path = output_dir / "figure_manifest.json"
     write_figure_manifest(figures, figure_manifest_path)
