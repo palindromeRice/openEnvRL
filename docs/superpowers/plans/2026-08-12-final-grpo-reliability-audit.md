@@ -17,7 +17,7 @@
 - Modify: `src/analysis/report.py` — approved figure set and reliability text.
 - Modify: `scripts/build_article_analysis.py` — render approved figure set.
 - Modify: `tests/analysis/test_artifact_analysis.py`, `tests/analysis/test_plots.py`, `tests/analysis/test_report.py` — focused regression coverage.
-- Modify: `docs/notes/decisions.md`, `docs/notes/flow.md` — execution trace.
+- Modify: `decisions.md`, `flow.md` — execution trace.
 - Runtime only: `results/article_analysis/` — regenerated outputs.
 
 Do not modify `pytest.ini`, source artifacts, model directories, checkpoints, or training/evaluation code.
@@ -59,7 +59,7 @@ Do not modify `pytest.ini`, source artifacts, model directories, checkpoints, or
 ## Commit
 
 ```bash
-git add src/analysis tests/analysis scripts/build_article_analysis.py docs/notes/decisions.md docs/notes/flow.md docs/superpowers/plans/2026-08-12-final-grpo-reliability-audit.md
+git add src/analysis tests/analysis scripts/build_article_analysis.py decisions.md flow.md docs/superpowers/plans/2026-08-12-final-grpo-reliability-audit.md
 git commit -m "feat: add final GRPO reliability audit"
 ```
 
