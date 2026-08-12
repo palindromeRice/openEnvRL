@@ -12,26 +12,28 @@ artifacts only.
 Keep:
 
 1. Figure 1 — Base `30%` → SFT `58%` → corrected final GRPO `88%`.
-2. Figure 5 — final GRPO reliability audit, `n=50`.
-3. Figure 7 — capability radar, retaining its measured-axis caveats.
+2. Figure 5 — final GRPO outcome strip, `n=50`.
+3. Figure 6 — final GRPO failure-mode bars.
+4. Figure 7 — capability radar, retaining its measured-axis caveats.
 
-Remove Figures 2, 3, 4, and 6 from article output and article narrative. They
+Remove Figures 2, 3, and 4 from article output and article narrative. They
 are procedural or provenance diagrams rather than reader-useful evidence.
 
-## Figure 5: final GRPO reliability audit
+## Figure 5: final GRPO outcome strip
 
 Title: `Final GRPO reliability audit — 50 held-out episodes`.
 
-Three panels, in reading order:
+Show large `44 / 50` result plus one horizontal strip of 50 episode squares.
+Green means success; red means failure. Do not include steps-by-outcome.
 
-1. Outcome: large `44 / 50` success result and `6 / 50` failures.
-2. Observed failure behavior, using only deterministic classifications from
-   saved actions and terminal state:
-   - correct selections, no `Submit`: 2;
-   - premature `Submit` before all requested checkboxes: 2;
-   - wrong-checkbox selections then `Submit`: 2.
-3. Executed steps by outcome: show successful episodes and failed episodes;
-   retain 10-step no-Submit outliers visibly.
+## Figure 6: final GRPO failure modes
+
+Show three human-readable bars using deterministic classifications from saved
+actions and terminal state:
+
+- correct selections, no `Submit`: 2;
+- premature `Submit` before all requested checkboxes: 2;
+- wrong-checkbox selections then `Submit`: 2.
 
 Panel 2 labels behavioral patterns, not inferred model intentions. The figure
 must not expose DOM IDs, raw completions, queues, or claim internal reasoning.

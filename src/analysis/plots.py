@@ -289,6 +289,74 @@ def plot_episode_reliability_audit(summary: Mapping[str, Any], output_path: Path
     )
 
 
+def plot_episode_reliability_summary(summary: Mapping[str, Any], output_path: Path) -> FigureMetadata:
+    """Render final evaluation outcome as one readable 50-episode strip."""
+    figure, axis = plt.subplots(figsize=(12, 3.4))
+    successes = list(summary.get("episode_successes", []))
+    total = int(summary.get("episode_count", len(successes)))
+    success_count = int(summary.get("success_count", sum(successes)))
+    failure_count = int(summary.get("failure_count", total - success_count))
+    if len(successes) != total:
+        successes = [True] * success_count + [False] * failure_count
+    colors = ["#4d8b57" if success else "#b85c5c" for success in successes]
+    axis.scatter(range(1, total + 1), [0] * total, c=colors, marker="s", s=220, edgecolors="white", linewidths=0.7)
+    axis.set_xlim(0, total + 1)
+    axis.set_ylim(-1, 1)
+    axis.set_yticks([])
+    axis.set_xlabel("Evaluation episode")
+    axis.set_title(f"Final GRPO reliability — {success_count}/{total} successful", fontsize=15, fontweight="bold")
+    axis.text(0.01, 0.18, f"SUCCESS  {success_count}", transform=axis.transAxes, color="#286b39", fontweight="bold")
+    axis.text(0.16, 0.18, f"FAILURE  {failure_count}", transform=axis.transAxes, color="#934141", fontweight="bold")
+    axis.text(0.99, 0.18, "Each square = one episode", transform=axis.transAxes, ha="right", color="#536579")
+    axis.grid(axis="x", alpha=0.15)
+    caption = (
+        f"Corrected final GRPO evaluation: {success_count}/{total} successful episodes. "
+        "Each square represents one saved episode; green indicates success and red indicates failure. "
+        "Final-policy reliability evidence only; no cross-stage episode comparison is implied."
+    )
+    return _save_figure(
+        figure,
+        output_path,
+        "figure5_final_episode_summary",
+        caption,
+        "final_grpo_episode_outcomes",
+        [Path("final_grpo_eval_episodes.jsonl")],
+    )
+
+
+def plot_episode_failure_modes(summary: Mapping[str, Any], output_path: Path) -> FigureMetadata:
+    """Render only the observable failure taxonomy for final GRPO."""
+    figure, axis = plt.subplots(figsize=(8.6, 4.3))
+    labels = ["Correct selections\nbut no Submit", "Premature\nSubmit", "Wrong selection\nthen Submit"]
+    categories = (
+        "no_submit_after_correct_selection",
+        "premature_submit",
+        "wrong_selection_then_submit",
+    )
+    counts = (summary.get("failure_behavior") or {}).get("counts", {})
+    values = [int(counts.get(category, 0)) for category in categories]
+    bars = axis.bar(labels, values, color=["#d9973f", "#c77745", "#b85c5c"], width=0.62)
+    axis.set_ylim(0, max(values + [1]) + 1)
+    axis.set_ylabel("Failed episodes")
+    axis.set_title("Why the 6 final-GRPO episodes failed", fontsize=15, fontweight="bold")
+    for bar, value in zip(bars, values):
+        axis.text(bar.get_x() + bar.get_width() / 2, value + 0.08, str(value), ha="center", fontweight="bold")
+    axis.text(0.5, -0.23, "Deterministic categories from requested labels, visible controls, executed actions, and terminal state.",
+              transform=axis.transAxes, ha="center", fontsize=8, color="#536579")
+    caption = (
+        "Final GRPO failure modes: 2 correct selections with no Submit, 2 premature Submit, "
+        "and 2 wrong selection then Submit. Categories describe observable behavior, not model intent."
+    )
+    return _save_figure(
+        figure,
+        output_path,
+        "figure6_final_episode_failure_modes",
+        caption,
+        "final_grpo_failure_behavior",
+        [Path("final_grpo_eval_episodes.jsonl")],
+    )
+
+
 def plot_artifact_lineage(source_paths: Sequence[Path], output_path: Path) -> FigureMetadata:
     figure, axis = plt.subplots(figsize=(11, 2.8))
     axis.axis("off")

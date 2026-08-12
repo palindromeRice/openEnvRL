@@ -105,7 +105,7 @@ flowchart LR
     A2 --> A3["schema + metric validation"]
     A3 --> A4["episode summaries + trace views"]
     A4 --> A5["classify failures"]
-    A5 --> A6["plots.py: article Figures 1, 5, 7"]
+    A5 --> A6["plots.py: article Figures 1, 5, 6, 7"]
     A4 --> A7["report.py: article"]
     A3 --> A8["schema_validation.json/md"]
     A6 --> A9["figure_manifest + figures"]
@@ -136,9 +136,9 @@ Inputs:
 | `GRPOToolPolicy` | checkpoint + observation | parsed tool action |
 | `artifact_analysis` | JSON/JSONL/manifests | validated records + provenance + trace views |
 | `classify_failure` | failed final-GRPO episode | observable failure category |
-| `plots.py` | validated records | article Figures 1, 5, 7 + caption metadata |
+| `plots.py` | validated records | article Figures 1, 5, 6, 7 + caption metadata |
 | `report.py` | metrics/traces/figures | article + validation report |
 
 ## Evidence boundary
 
-Analysis reads saved artifacts only. `artifact_analysis.py` validates metrics, manifests, SFT demonstrations, and final GRPO episode records; it emits episode summaries, trace views, and deterministic failed-episode classifications. `plots.py` renders article Figures 1, 5, and 7 only; Figure 5 summarizes outcome, observed failure behavior, and steps by outcome. `report.py` writes article + schema reports. `build_article_analysis.py` orchestrates this path. Base/SFT model-eval traces unavailable; no invented cross-stage action distributions.
+Analysis reads saved artifacts only. `artifact_analysis.py` validates metrics, manifests, SFT demonstrations, and final GRPO episode records; it emits episode summaries, trace views, and deterministic failed-episode classifications. `plots.py` renders article Figures 1, 5, 6, and 7; Figure 5 shows episode outcomes, Figure 6 shows failure modes. `report.py` writes article + schema reports. `build_article_analysis.py` orchestrates this path. Base/SFT model-eval traces unavailable; no invented cross-stage action distributions.
