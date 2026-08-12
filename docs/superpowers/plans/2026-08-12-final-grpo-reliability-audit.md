@@ -4,7 +4,7 @@
 
 **Goal:** Replace opaque article figures with an artifact-only final-GRPO reliability audit explaining 44 successes and six observed failure patterns across 50 episodes.
 
-**Architecture:** Add deterministic failure classification beside existing episode parsing. Replace Figure 5 with three evidence panels: outcome, failure taxonomy, and steps by outcome. Update article assembly and manifest generation to emit only Figures 1, 5, and 7 while retaining provenance. Existing artifacts remain read-only.
+**Architecture:** Add deterministic failure classification beside existing episode parsing. Render Figure 5 as a clean 50-episode outcome strip and Figure 6 as separate failure-mode bars. Update article assembly and manifest generation to emit Figures 1, 5, 6, and 7 while retaining provenance. Existing artifacts remain read-only.
 
 **Tech Stack:** Python 3.11+, pathlib, json, matplotlib, pytest, Markdown.
 
@@ -32,10 +32,10 @@ Do not modify `pytest.ini`, source artifacts, model directories, checkpoints, or
 
 ## Task 2: Replace Figure 5
 
-- [x] Test non-empty output and metadata for outcome counts, three failure categories, and steps grouped by outcome.
-- [x] Implement `plot_episode_reliability_audit(summary, output_path)` in `plots.py`.
+- [x] Test non-empty output and metadata for outcome strip and three failure categories.
+- [x] Implement `plot_episode_reliability_summary` and `plot_episode_failure_modes` in `plots.py`.
 - [x] Use human labels; exclude DOM IDs, raw completions, queues, and inferred intentions.
-- [x] Keep two ten-step failed episodes visible as outliers.
+- [x] Keep outcome and failure-mode messages separate; omit steps-by-outcome.
 - [x] Caption source: corrected final GRPO episode JSONL; state deterministic behavioral classification and final-only scope.
 - [x] Run `pytest tests/analysis/test_plots.py -q`.
 
@@ -52,7 +52,7 @@ Do not modify `pytest.ini`, source artifacts, model directories, checkpoints, or
 - [x] Update `decisions.md` and `flow.md` with implementation status and classifier edge.
 - [x] Run `pytest tests/analysis -q`.
 - [x] Run CLI against existing artifacts in a clean temporary output directory, then regenerate `results/article_analysis/`.
-- [x] Verify Figure 1 shows 30/58/88, Figure 5 shows 44/50 and 2/2/2 categories, Figure 7 remains, and old figures are absent from manifest.
+- [x] Verify Figure 1 shows 30/58/88, Figure 5 shows 44/50, Figure 6 shows 2/2/2 categories, Figure 7 remains, and old figures are absent from manifest.
 - [x] Run `pytest -q tests` and `git diff --check`.
 - [x] Confirm only pre-existing `pytest.ini` remains unrelated.
 

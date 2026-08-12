@@ -28,6 +28,8 @@ from src.analysis.plots import (
     plot_artifact_lineage,
     plot_capability_radar,
     plot_episode_reliability_audit,
+    plot_episode_failure_modes,
+    plot_episode_reliability_summary,
     plot_stage_progression,
 )
 from src.analysis.report import (
@@ -94,12 +96,14 @@ def run_analysis(
     figure_paths = [
         output_dir / "figure1_stage_progression.png",
         output_dir / "figure5_final_episode_summary.png",
+        output_dir / "figure6_final_episode_failure_modes.png",
         output_dir / "figure7_capability_radar.png",
     ]
     figures = [
         plot_stage_progression(metrics, figure_paths[0]),
-        _with_sources(plot_episode_reliability_audit(summary, figure_paths[1]), [grpo_episodes_path]),
-        plot_capability_radar(metrics, figure_paths[2]),
+        _with_sources(plot_episode_reliability_summary(summary, figure_paths[1]), [grpo_episodes_path]),
+        _with_sources(plot_episode_failure_modes(summary, figure_paths[2]), [grpo_episodes_path]),
+        plot_capability_radar(metrics, figure_paths[3]),
     ]
     figure_manifest_path = output_dir / "figure_manifest.json"
     write_figure_manifest(figures, figure_manifest_path)

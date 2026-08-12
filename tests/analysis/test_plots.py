@@ -5,8 +5,10 @@ from src.analysis.artifact_analysis import load_final_grpo_episodes, summarize_f
 from src.analysis.plots import (
     plot_artifact_lineage,
     plot_capability_radar,
+    plot_episode_failure_modes,
     plot_demonstration_evaluation_cards,
     plot_episode_summary,
+    plot_episode_reliability_summary,
     plot_evaluator_flow,
     plot_stage_progression,
     plot_tool_use_timeline,
@@ -101,3 +103,27 @@ def test_reliability_audit_has_failure_taxonomy_and_steps(tmp_path):
     caption = metadata.caption_path.read_text(encoding="utf-8")
     assert "44/50" in caption
     assert "no Submit" in caption
+
+
+def test_reliability_figures_split_outcome_and_failure_modes(tmp_path):
+    from src.analysis.plots import plot_episode_failure_modes, plot_episode_reliability_summary
+
+    summary = {
+        "episode_count": 50,
+        "success_count": 44,
+        "failure_count": 6,
+        "episode_successes": [True] * 44 + [False] * 6,
+        "failure_behavior": {"counts": {
+            "no_submit_after_correct_selection": 2,
+            "premature_submit": 2,
+            "wrong_selection_then_submit": 2,
+        }},
+    }
+    outcome = plot_episode_reliability_summary(summary, tmp_path / "figure5.png")
+    failure = plot_episode_failure_modes(summary, tmp_path / "figure6.png")
+
+    _assert_output(outcome, tmp_path / "figure5.png")
+    _assert_output(failure, tmp_path / "figure6.png")
+    assert "44/50" in outcome.caption_path.read_text(encoding="utf-8")
+    failure_caption = failure.caption_path.read_text(encoding="utf-8")
+    assert failure_caption.count("2") == 3
