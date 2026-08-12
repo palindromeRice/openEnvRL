@@ -74,6 +74,14 @@ class ValidationReport:
     aggregate_reconciled: bool | None = None
 
 
+@dataclass(frozen=True)
+class FailureClassification:
+    category: str
+    episode_id: str
+    clicked_labels: tuple[str, ...]
+    requested_labels: tuple[str, ...]
+
+
 REQUIRED_STEP_FIELDS = (
     "steps[].instruction",
     "steps[].observation",
@@ -347,6 +355,7 @@ def summarize_final_episodes(records: Sequence[EpisodeRecord]) -> dict[str, Any]
         "failure_count": sum(not record.success for record in records),
         "success_rate": sum(record.success for record in records) / len(records) if records else 0.0,
         "episode_lengths": lengths,
+        "episode_successes": [record.success for record in records],
         "terminal_action_counts": {
             action: terminal_actions.count(action) for action in sorted(set(terminal_actions))
         },
@@ -356,4 +365,72 @@ def summarize_final_episodes(records: Sequence[EpisodeRecord]) -> dict[str, Any]
             for step in record.steps
             if step.raw_completion is not None or step.parsed_action is not None
         ),
+    }
+
+
+def _requested_labels(instruction: str) -> tuple[str, ...]:
+    match = re.search(r"Select (.+) and click Submit\.", instruction)
+    if match is None:
+        raise ArtifactValidationError(f"cannot parse requested labels: {instruction}")
+    return tuple(label.strip() for label in match.group(1).split(","))
+
+
+def _visible_control_labels(observation: str) -> dict[str, str]:
+    return {
+        control_id: label
+        for control_id, label in re.findall(
+            r"\[(\d+)\] (?:checkbox|button) '([^']+)'", observation
+        )
+    }
+
+
+def _action_target(action: str) -> str | None:
+    match = re.search(r"click\('([^']+)'\)", action)
+    return match.group(1) if match else None
+
+
+def classify_failure(record: EpisodeRecord) -> FailureClassification:
+    if record.success:
+        raise ArtifactValidationError(f"cannot classify successful episode: {record.episode_id}")
+    requested = _requested_labels(record.steps[0].instruction)
+    labels_by_id = _visible_control_labels(record.steps[0].observation)
+    clicked_labels = tuple(
+        labels_by_id[target]
+        for step in record.steps
+        if (target := _action_target(step.action)) is not None
+        and target in labels_by_id
+        and labels_by_id[target] != "Submit"
+    )
+    submitted = any(
+        labels_by_id.get(target) == "Submit"
+        for step in record.steps
+        if (target := _action_target(step.action)) is not None
+    )
+    has_wrong_selection = any(label not in requested for label in clicked_labels)
+    all_clicked_correct = all(label in requested for label in clicked_labels)
+    if not submitted and all_clicked_correct:
+        category = "no_submit_after_correct_selection"
+    elif submitted and all_clicked_correct and len(set(clicked_labels)) < len(requested):
+        category = "premature_submit"
+    elif submitted and has_wrong_selection:
+        category = "wrong_selection_then_submit"
+    else:
+        raise ArtifactValidationError(
+            f"unclassifiable failed episode {record.episode_id}: "
+            f"actions={tuple(step.action for step in record.steps)}"
+        )
+    return FailureClassification(category, record.episode_id, clicked_labels, requested)
+
+
+def summarize_failure_behavior(records: Sequence[EpisodeRecord]) -> dict[str, Any]:
+    classifications = tuple(classify_failure(record) for record in records if not record.success)
+    categories = (
+        "no_submit_after_correct_selection",
+        "premature_submit",
+        "wrong_selection_then_submit",
+    )
+    counts = {category: sum(item.category == category for item in classifications) for category in categories}
+    return {
+        "counts": counts,
+        "classifications": [item.__dict__ for item in classifications],
     }
