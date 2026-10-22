@@ -69,6 +69,14 @@ flowchart TD
     class X,E,R,F,N,O,M,J1,J2 eval
 ```
 
+Same-evaluator stage comparison (2026-10-22): `scripts/_colab_same_evaluator_controls.py` scores Base, SFT, and GRPO r5 checkpoint-20 through `run_grpo_eval_phase` (`GRPOToolPolicy`), 50 episodes each, into `artifacts/2026-10-22-same-evaluator-controls/results/`.
+
+| Stage | Result file | Success |
+| --- | --- | --- |
+| Base | `grpo_eval_step_base_control_50_bracketfix.json` | 30% |
+| SFT | `grpo_eval_step_sft_control_50.json` | 64% |
+| GRPO r5 step 20 | `grpo_eval_step_grpo_r5_step20_rescore_50.json` | 94% |
+
 ## 4. Training paths
 
 ### SFT
@@ -141,7 +149,7 @@ Inputs:
 
 ## Evidence boundary
 
-Analysis reads saved artifacts only. `artifact_analysis.py` validates metrics, manifests, SFT demonstrations, and final GRPO episode records; it emits episode summaries, trace views, and deterministic failed-episode classifications. `plots.py` renders article Figures 1, 5, 6, and 7; Figure 5 shows episode outcomes, Figure 6 shows failure modes. `report.py` writes article + schema reports. `build_article_analysis.py` orchestrates this path. Base/SFT model-eval traces unavailable; no invented cross-stage action distributions.
+Analysis reads saved artifacts only. `artifact_analysis.py` validates metrics, manifests, SFT demonstrations, and final GRPO episode records; it emits episode summaries, trace views, and deterministic failed-episode classifications. `plots.py` renders article Figures 1, 5, 6, and 7; Figure 5 shows episode outcomes, Figure 6 shows failure modes. `report.py` writes article + schema reports. `build_article_analysis.py` orchestrates this path. Base/SFT model-eval traces unavailable for the July runs; no invented cross-stage action distributions. Since 2026-10-22, `build_article_analysis.py` defaults to `--controls-root artifacts/2026-10-22-same-evaluator-controls`: stage metrics and the GRPO audit (47/50) come from the same-evaluator results. Omitting the controls root restores the July path (30/58/88).
 
 Publication boundary: runtime figures/reports are generated under ignored
 `results/article_analysis/`; approved PNGs are copied to tracked

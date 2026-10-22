@@ -338,7 +338,8 @@ def plot_episode_failure_modes(summary: Mapping[str, Any], output_path: Path) ->
     bars = axis.bar(labels, values, color=["#d9973f", "#c77745", "#b85c5c"], width=0.62)
     axis.set_ylim(0, max(values + [1]) + 1)
     axis.set_ylabel("Failed episodes")
-    axis.set_title("Why the 6 final-GRPO episodes failed", fontsize=15, fontweight="bold")
+    axis.set_title(f"Why the {sum(values)} final-GRPO episodes failed", fontsize=15, fontweight="bold")
+    axis.yaxis.get_major_locator().set_params(integer=True)
     for bar, value in zip(bars, values):
         axis.text(bar.get_x() + bar.get_width() / 2, value + 0.08, str(value), ha="center", fontweight="bold")
     axis.text(0.5, -0.23, "Deterministic categories from requested labels, visible controls, executed actions, and terminal state.",

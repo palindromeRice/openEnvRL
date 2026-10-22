@@ -2,6 +2,17 @@
 
 Short log. Add newest decision at top.
 
+## 2026-10-22 — Same-evaluator stage comparison
+
+- Choice: report Base/SFT/GRPO from one evaluator (`GRPOToolPolicy` via `run_grpo_eval_phase`), one Colab stack, 50 episodes each. July Base 30% / SFT 58% came from `src/agents/policy.py` and are not comparable to GRPO.
+- Results (`artifacts/2026-10-22-same-evaluator-controls/results/`): Base 30% (bracket-fix run), SFT 64%, GRPO r5 checkpoint-20 re-score 94%.
+- Parser fix: `GRPOToolPolicy` now strips `[]` from targets. Base wrote `[24]`; strict parser scored it 4% (414/454 NOOPs bracketed). SFT/GRPO had 0 bracketed targets, so their scores are unaffected.
+- Stack: Python 3.13, torch 2.11, transformers 5.20, current playwright; browsergym 0.14.3 installed `--no-deps` (its playwright==1.44 pin needs greenlet 3.0.3, no cp313 wheel). HF Space dep skipped (native backend).
+- Boundary: unseeded, separately randomized episodes per stage; single GRPO run.
+- Second GRPO seed: dropped. Article reports a single run as a stated limitation.
+- Figures 1, 5, 6, 7 regenerated locally from these results (`build_article_analysis.py --controls-root`, default). GRPO re-score failures: 1 premature Submit, 2 wrong selection.
+- Writing sources updated: technical report now leads with 30/64/94 (Wilson intervals), keeps July 30/58/88 as history (Section 3.6); README result block replaced. Handoff notes and test fixtures left as-is (historical / synthetic).
+
 ## 2026-08-12 — Final-GRPO reliability visual redesign
 
 - Keep article Figures 1, 5, 6, and 7 only; remove opaque tool-trace, process, and lineage diagrams.
