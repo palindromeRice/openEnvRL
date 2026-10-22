@@ -35,6 +35,12 @@ def test_grpo_tool_policy_parses_every_tool_call_in_order():
     ]
 
 
+def test_grpo_tool_policy_accepts_bracketed_ids():
+    completion = "<tool_call>\n<function=click>\n<parameter=target>\n[24]\n</parameter>\n</function>\n</tool_call>"
+
+    assert GRPOToolPolicy.parse_completion_actions(completion, "") == ["click('24')"]
+
+
 def test_grpo_tool_policy_resolves_visible_control_names_to_ids():
     completion = """<tool_call><function=click><parameter=target>7A</parameter></function></tool_call>
     <tool_call><function=click><parameter=target>Submit</parameter></function></tool_call>"""

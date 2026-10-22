@@ -30,25 +30,15 @@ Completed so far:
 - LoRA SFT trained on Colab `T4` (Qwen3.5-0.8B, unsloth, r=16, 60 steps, ~3.5 epochs)
 - SFT evaluated against baseline on the same `50`-episode profile: success rate `0.30` -> `0.58`, average reward `0.30` -> `0.58`, average steps `4.36` -> `1.4`
 
-Current baseline result:
+Current result (2026-10-22, one evaluator, `50` fresh episodes per stage):
 
-- profile: `50` evaluation episodes
-- success rate: `0.30`
-- average reward: `0.30`
-- average steps: `4.36`
+| Stage | Success | Average steps |
+| --- | ---: | ---: |
+| Base | `0.30` | `6.58` |
+| SFT | `0.64` | `3.76` |
+| GRPO checkpoint-20 | `0.94` | `2.88` |
 
-Current SFT result:
-
-- profile: `50` evaluation episodes
-- success rate: `0.58`
-- average reward: `0.58`
-- average steps: `1.42`
-
-Pending next tasks:
-
-- increase `max_completion_length` and add tool-use instructions to system prompt for GRPO
-- scale GRPO to full run
-- compare baseline vs SFT vs GRPO in final analysis
+All three come from `GRPOToolPolicy` via `scripts/_colab_same_evaluator_controls.py`. The status bullets above (and the SFT `0.58`) are earlier measurements from the original `CLICK ref=` evaluator, kept as history. Full write-up: `docs/notes/2026-07-27-click-checkboxes-sft-grpo-technical-report.md`.
 
 GRPO smoke test status:
 
