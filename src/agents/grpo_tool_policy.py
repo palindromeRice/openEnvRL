@@ -47,7 +47,8 @@ class GRPOToolPolicy:
         }
         actions: list[str] = []
         for target_text in _TOOL_CALL_RE.findall(text):
-            target = target_text.strip().strip("'\"")
+            # Base model copies the observation's "[24]" form; accept it as the bare ID.
+            target = target_text.strip().strip("'\"[]")
             ref = target if target.isdigit() else visible_controls.get(target)
             if ref is not None:
                 actions.append(f"click('{ref}')")
