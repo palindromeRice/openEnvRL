@@ -1,6 +1,6 @@
 # openEnvRL: Small Models as Agents (SFT and GRPO on a Browser Task)
 
-Code for the paper [Small Models as Agents: SFT and GRPO on a Browser Task](https://palindromerice.github.io/writing/browser-agent-sft-grpo/).
+Code for the article [Small Models as Agents: SFT and GRPO on a Browser Task](https://palindromerice.github.io/writing/browser-agent-sft-grpo/) on palindromerice.github.io.
 It takes `Qwen/Qwen3.5-0.8B` through SFT on 50 self-generated demonstrations, then 20 online GRPO
 updates in a live browser, on the MiniWoB++ `click-checkboxes` task. On 50 fresh randomized
 episodes per stage, exact-match success rises from **16% (base) to 42% (SFT) to 84% (GRPO)**.
