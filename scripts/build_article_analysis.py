@@ -19,7 +19,9 @@ from src.analysis.artifact_analysis import (
     load_manifest,
     load_sft_demonstrations,
     load_stage_metrics,
+    metric_from_records,
     reconcile_grpo_metrics,
+    strict_success_records,
     summarize_failure_behavior,
     summarize_final_episodes,
     validate_episode_records,
@@ -104,6 +106,22 @@ def run_analysis(
     validation = validate_episode_records(records, grpo_episodes_path, expected_count=50)
     if not reconcile_grpo_metrics(records, metrics["grpo"]):
         raise ArtifactValidationError("final GRPO aggregate does not reconcile with per-episode records")
+    if controls_root is not None:
+        # Report exact-match success (raw reward == 1); the env counts partial credit as success.
+        episode_paths = {
+            "base": results / "grpo_eval_step_base_control_50_bracketfix_episodes.jsonl",
+            "sft": results / "grpo_eval_step_sft_control_50_episodes.jsonl",
+            "grpo": grpo_episodes_path,
+        }
+        strict = {
+            stage: strict_success_records(load_final_grpo_episodes(path))
+            for stage, path in episode_paths.items()
+        }
+        metrics = {
+            stage: metric_from_records(stage_records, stage, episode_paths[stage])
+            for stage, stage_records in strict.items()
+        }
+        records = strict["grpo"]
     load_sft_demonstrations(sft_trajectories_path, limit=1)
     load_manifest(sft_manifest_path)
     load_manifest(grpo_manifest_path)

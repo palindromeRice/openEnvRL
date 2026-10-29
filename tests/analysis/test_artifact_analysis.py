@@ -17,6 +17,8 @@ from src.analysis.artifact_analysis import (
     summarize_failure_behavior,
     EpisodeRecord,
     EpisodeStep,
+    metric_from_records,
+    strict_success_records,
 )
 
 
@@ -185,3 +187,26 @@ def _classification_fixture():
         record(5, ("click('18')", "click('33')")),
         record(6, ("click('18')", "click('33')")),
     )
+
+
+def test_strict_success_counts_only_exact_matches(tmp_path):
+    step = {
+        "instruction": "Select A, B and click Submit.",
+        "observation": "[21] checkbox 'A'",
+        "action": "click('21')",
+        "reward": 1,
+        "done": True,
+        "policy_diagnostics": {"raw_completion": "", "parsed_action": "click('21')"},
+    }
+    lines = [
+        {"episode_id": f"ep{i}", "steps": [step], "success": True, "total_reward": 1,
+         "final_info": {"raw_info": {"task_info": {"RAW_REWARD_GLOBAL": raw}}}}
+        for i, raw in enumerate([1, 0.5])
+    ]
+    path = tmp_path / "episodes.jsonl"
+    path.write_text("\n".join(json.dumps(line) for line in lines), encoding="utf-8")
+
+    strict = strict_success_records(load_final_grpo_episodes(path))
+
+    assert [record.success for record in strict] == [True, False]
+    assert metric_from_records(strict, "grpo", path).success_rate == 0.5

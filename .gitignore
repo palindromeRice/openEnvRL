@@ -6,3 +6,6 @@ models/
 results/
 artifacts/
 unsloth_compiled_cache/
+
+# Article drafts (local only)
+writing/

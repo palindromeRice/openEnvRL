@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
@@ -39,6 +39,7 @@ class EpisodeRecord:
     success: bool
     total_reward: float
     source_line: int
+    raw_reward: float | None = None
 
 
 @dataclass(frozen=True)
@@ -191,12 +192,48 @@ def _parse_episode(value: Mapping[str, Any], line_number: int) -> EpisodeRecord:
     if not isinstance(steps, list) or not steps:
         raise ArtifactValidationError(f"line {line_number}: steps missing or empty")
     parsed_steps = tuple(_parse_step(step, line_number) for step in steps)
+    final_info = value.get("final_info")
+    task_info = (
+        (final_info.get("raw_info") or {}).get("task_info") or {}
+        if isinstance(final_info, Mapping)
+        else {}
+    )
+    raw_reward = task_info.get("RAW_REWARD_GLOBAL")
     return EpisodeRecord(
         episode_id=episode_id,
         steps=parsed_steps,
         success=value.get("success") is True,
         total_reward=float(value.get("total_reward", 0.0)),
         source_line=line_number,
+        raw_reward=float(raw_reward) if raw_reward is not None else None,
+    )
+
+
+def strict_success_records(records: Sequence[EpisodeRecord]) -> tuple[EpisodeRecord, ...]:
+    """Re-score episodes as exact matches: MiniWoB raw reward == 1.
+
+    The env wrapper counts any positive raw reward (partial credit) as success.
+    """
+    strict = []
+    for record in records:
+        if record.raw_reward is None:
+            raise ArtifactValidationError(f"episode {record.episode_id}: RAW_REWARD_GLOBAL missing")
+        exact = record.raw_reward == 1.0
+        strict.append(replace(record, success=exact, total_reward=1.0 if exact else 0.0))
+    return tuple(strict)
+
+
+def metric_from_records(records: Sequence[EpisodeRecord], stage: str, source_path: Path) -> StageMetric:
+    count = len(records)
+    if count == 0:
+        raise ArtifactValidationError(f"no episode records for {stage}")
+    return StageMetric(
+        stage=stage,
+        success_rate=sum(record.success for record in records) / count,
+        average_reward=sum(record.total_reward for record in records) / count,
+        average_steps=sum(len(record.steps) for record in records) / count,
+        source_path=source_path,
+        evidence_type="strict_exact_match",
     )
 
 

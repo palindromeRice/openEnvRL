@@ -104,8 +104,7 @@ are descriptive rather than paired.
 
 ![Success by training stage](figures/article_analysis/figure1_stage_progression.png)
 
-*Success by training stage under the environment's default (partial-credit) criterion. Exact-match
-rates for the same episodes are in the table above.*
+*Exact-match success by training stage, 50 episodes each, scored by one evaluator.*
 
 What the traces show:
 
