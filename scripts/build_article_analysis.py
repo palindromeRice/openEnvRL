@@ -44,7 +44,6 @@ from src.analysis.report import (
 
 DEFAULT_SFT_ROOT = Path("artifacts/2026-07-12-sft-full")
 DEFAULT_GRPO_ROOT = Path("artifacts/2026-07-26-grpo-gate-r5")
-DEFAULT_BASE_REPORT = Path("docs/notes/2026-07-27-click-checkboxes-sft-grpo-technical-report.md")
 # Base/SFT/GRPO scored by one evaluator (GRPOToolPolicy), 50 episodes each.
 DEFAULT_CONTROLS_ROOT = Path("artifacts/2026-10-22-same-evaluator-controls")
 FORBIDDEN_OUTPUT_MARKERS = ("grpo_eval_step_20.json", "invalid intermediate grpo")
@@ -74,7 +73,7 @@ def run_analysis(
     output_dir: Path,
     sft_root: Path,
     grpo_root: Path,
-    base_report_path: Path,
+    base_report_path: Path | None,
     controls_root: Path | None = None,
 ) -> dict[str, Path]:
     _ensure_output_dir(output_dir)
@@ -86,6 +85,8 @@ def run_analysis(
     grpo_manifest_path = grpo_root / "grpo_run_manifest.json"
 
     if controls_root is None:
+        if base_report_path is None:
+            raise ValueError("--base-report is required without --controls-root")
         metrics = load_stage_metrics(base_report_path, sft_metrics_path, grpo_metrics_path)
     else:
         results = controls_root / "results"
@@ -157,7 +158,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--sft-root", type=Path, default=DEFAULT_SFT_ROOT)
     parser.add_argument("--grpo-root", type=Path, default=DEFAULT_GRPO_ROOT)
-    parser.add_argument("--base-report", type=Path, default=DEFAULT_BASE_REPORT)
+    parser.add_argument("--base-report", type=Path, default=None)
     parser.add_argument("--controls-root", type=Path, default=DEFAULT_CONTROLS_ROOT)
     return parser
 
