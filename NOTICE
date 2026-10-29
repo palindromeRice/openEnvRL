@@ -1,0 +1,13 @@
+openEnvRL
+Copyright 2026 Naman Chawla
+
+This product includes software developed by Naman Chawla
+(https://github.com/palindromeRice/openEnvRL).
+
+If you use this code, its results, or derived work in a publication,
+please cite:
+
+  Naman Chawla. 2026. Small Models as Agents: SFT and GRPO on a Browser Task.
+  https://palindromerice.github.io/writing/browser-agent-sft-grpo/
+
+Citation metadata is in CITATION.cff.
